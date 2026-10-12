@@ -179,6 +179,7 @@ const recipe: Recipe = {
     {
       kind: "add",
       title: "Add the sauces and seasoning",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       flame: "high",
       items: [
         { ingredient: "soy-sauce", qty: 1, unit: "tbsp" },

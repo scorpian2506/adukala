@@ -24,7 +24,7 @@ const recipe: Recipe = {
     { id: "turmeric", name: "Turmeric powder", native: "Manjal thool", qty: 0.25, unit: "tsp", group: "spice" },
     { id: "onion", name: "Onion", native: "Vengayam", qty: 100, unit: "g", approx: "about 1 medium onion", group: "main" },
     { id: "tomato", name: "Tomato", native: "Thakkali", qty: 100, unit: "g", approx: "about 1 medium tomato", group: "main" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thengai thuruval", qty: 50, unit: "g", approx: "about 1/2 cup", group: "main", section: "For the paste" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 25, unit: "g", approx: "about 1/3 cup", group: "main", section: "For the paste" },
     { id: "poppy-seeds", name: "Poppy seeds (white)", native: "Kasa kasa", qty: 1, unit: "tsp", group: "spice", section: "For the paste" },
     { id: "cashews", name: "Cashew nuts", native: "Mundhiri", qty: 4, unit: "pc", approx: "about 5 g", group: "main", section: "For the paste" },
     { id: "roasted-gram", name: "Roasted chana dal", native: "Pottukadalai", qty: 10, unit: "g", approx: "about 1 tbsp", group: "main", section: "For the paste", tag: "protein" },
@@ -60,6 +60,14 @@ const recipe: Recipe = {
       cue: "Cashews are soft enough to squash.",
     },
     {
+      kind: "soak",
+      title: "Soak the desiccated coconut",
+      detail: "Soak it in 3 tbsp warm water for 10 minutes so it softens.",
+      durationSec: 600,
+      equipment: "bowl",
+      items: [{ ingredient: "coconut", qty: 25, unit: "g" }],
+    },
+    {
       kind: "rinse",
       title: "Rinse the moong dal",
       detail: "Wash it in a bowl of water 3 times, draining through a sieve each time.",
@@ -89,11 +97,11 @@ const recipe: Recipe = {
     {
       kind: "grind",
       title: "Grind the paste",
-      detail: "Put these in the mixer with the soaked poppy seeds, cashews and their water, and grind.",
+      detail: "Put these in the mixer with the soaked coconut, poppy seeds, cashews and all their water, and grind.",
       equipment: "mixer",
       durationSec: 90,
       items: [
-        { ingredient: "coconut", qty: 50, unit: "g" },
+        { ingredient: "coconut", qty: 25, unit: "g" },
         { ingredient: "roasted-gram", qty: 10, unit: "g" },
         { ingredient: "fennel", qty: 1, unit: "tsp" },
         { ingredient: "green-chilli", qty: 3, unit: "pc" },
@@ -231,6 +239,7 @@ const recipe: Recipe = {
         { ingredient: "water", qty: 150, unit: "ml" },
         { ingredient: "salt", qty: 1, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     {
       kind: "stir",

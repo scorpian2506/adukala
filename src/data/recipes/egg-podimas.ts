@@ -112,7 +112,7 @@ const recipe: Recipe = {
       ],
     },
     { kind: "stir", title: "Fry the onion for 4 minutes", flame: "medium", durationSec: 240, cue: "Onion is soft and light golden." },
-    { kind: "add", title: "Add the turmeric", flame: "medium", items: [{ ingredient: "turmeric", qty: 0.25, unit: "tsp" }] },
+    { kind: "add", title: "Add the turmeric", flame: "medium", items: [{ ingredient: "turmeric", qty: 0.25, unit: "tsp" }], tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt." },
     { kind: "stir", title: "Stir for 10 seconds", flame: "medium", durationSec: 10 },
     { kind: "flame", title: "Turn the flame to low", detail: "Eggs turn rubbery on high heat.", flame: "low" },
     { kind: "add", title: "Pour in the beaten eggs", detail: "Spread them over the onions in an even layer.", flame: "low" },

@@ -30,7 +30,7 @@ const recipe: Recipe = {
     { id: "chana-dal", name: "Chana dal", native: "Kadalai paruppu", qty: 1, unit: "tsp", group: "tempering" },
     { id: "curry-leaves", name: "Curry leaves", native: "Karuveppilai", qty: 8, unit: "pc", approx: "about 1 small sprig", group: "tempering" },
     { id: "hing", name: "Asafoetida", native: "Perungayam", qty: 0.125, unit: "tsp", group: "tempering" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thengai thuruval", qty: 25, unit: "g", approx: "about 3 tbsp", group: "garnish" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 15, unit: "g", approx: "about 2 tbsp, unsweetened", group: "garnish" },
   ],
   prep: [
     {
@@ -85,7 +85,8 @@ const recipe: Recipe = {
         { ingredient: "turmeric", qty: 0.125, unit: "tsp" },
       ],
     },
-    { kind: "measure", title: "Measure the grated coconut", equipment: "bowl", items: [{ ingredient: "coconut", qty: 25, unit: "g" }] },
+    { kind: "measure", title: "Measure the desiccated coconut", equipment: "bowl", items: [{ ingredient: "coconut", qty: 15, unit: "g" }] },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 2 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     { kind: "measure", title: "Measure the oil", equipment: "bowl", items: [{ ingredient: "oil", qty: 1, unit: "tbsp" }] },
   ],
   cook: [
@@ -132,6 +133,7 @@ const recipe: Recipe = {
         { ingredient: "salt", qty: 0.75, unit: "tsp" },
         { ingredient: "turmeric", qty: 0.125, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "stir", title: "Stir for 2 minutes", flame: "medium", durationSec: 120, cue: "Cabbage starts to wilt and shrink." },
     {
@@ -159,7 +161,7 @@ const recipe: Recipe = {
       cue: "No water left at the bottom of the kadai.",
     },
     { kind: "flame", title: "Turn off the flame", flame: "off" },
-    { kind: "add", title: "Add the grated coconut", flame: "off", items: [{ ingredient: "coconut", qty: 25, unit: "g" }] },
+    { kind: "add", title: "Add the soaked coconut", flame: "off", items: [{ ingredient: "coconut", qty: 15, unit: "g" }] },
     {
       kind: "stir",
       title: "Mix for 30 seconds",

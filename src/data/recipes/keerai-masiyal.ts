@@ -95,6 +95,7 @@ const recipe: Recipe = {
         { ingredient: "green-chilli", qty: 1, unit: "pc" },
         { ingredient: "cumin", qty: 0.5, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "heat", title: "Turn on the flame", flame: "medium", equipment: "saucepan", durationSec: 60 },
     {

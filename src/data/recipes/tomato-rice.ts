@@ -202,6 +202,7 @@ const recipe: Recipe = {
     {
       kind: "add",
       title: "Add the powdered spices",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       flame: "low",
       items: [
         { ingredient: "turmeric", qty: 0.25, unit: "tsp" },

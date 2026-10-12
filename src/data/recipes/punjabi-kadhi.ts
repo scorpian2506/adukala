@@ -154,6 +154,7 @@ const recipe: Recipe = {
     {
       kind: "add",
       title: "Whisk curd, besan and spices",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       detail: "Use a big bowl; add the kadhi besan, turmeric and 0.5 tsp chilli powder.",
       equipment: "bowl",
       items: [

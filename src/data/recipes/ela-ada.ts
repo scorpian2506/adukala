@@ -19,7 +19,7 @@ const recipe: Recipe = {
   hue: "leaf",
   equipment: ["saucepan", "pressure_cooker", "knife", "bowl", "ladle"],
   ingredients: [
-    { id: "coconut", name: "Grated coconut (fresh or frozen)", native: "Thenga chirakiyathu", qty: 100, unit: "g", approx: "1 cup", group: "main", section: "For the filling" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thenga chirakiyathu", qty: 50, unit: "g", approx: "about 3/4 cup", group: "main", section: "For the filling" },
     { id: "jaggery", name: "Jaggery, powdered or grated", native: "Sharkara", qty: 80, unit: "g", approx: "1/3 cup packed", group: "main", section: "For the filling", tag: "sugar" },
     { id: "cardamom", name: "Cardamom powder", native: "Elakka podi", qty: 0.25, unit: "tsp", group: "spice", section: "For the filling" },
     { id: "banana-leaf", name: "Banana leaf pieces (or baking parchment)", native: "Vazhayila", qty: 6, unit: "pc", approx: "each about 20 x 25 cm", group: "main" },
@@ -36,7 +36,7 @@ const recipe: Recipe = {
       detail: "Add the coconut, jaggery and cardamom to a bowl.",
       equipment: "bowl",
       items: [
-        { ingredient: "coconut", qty: 100, unit: "g" },
+        { ingredient: "coconut", qty: 50, unit: "g" },
         { ingredient: "jaggery", qty: 80, unit: "g" },
         { ingredient: "cardamom", qty: 0.25, unit: "tsp" },
       ],
@@ -44,7 +44,7 @@ const recipe: Recipe = {
     {
       kind: "stir",
       title: "Mix the filling well",
-      detail: "Rub it together with your fingers to break up any jaggery lumps.",
+      detail: "Sprinkle in 2 tbsp warm water, then rub it together with your fingers to break up jaggery lumps.",
       durationSec: 60,
       equipment: "bowl",
       cue: "Evenly light brown and slightly moist.",

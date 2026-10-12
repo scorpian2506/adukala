@@ -121,6 +121,7 @@ const recipe: Recipe = {
     {
       kind: "wait",
       title: "Cover and rest 20 minutes",
+      background: true, // runs while you get on with the next steps
       detail: "Cover the bowl with a plate so the dough doesn't dry out.",
       durationSec: 1200,
     },
@@ -203,6 +204,7 @@ const recipe: Recipe = {
         { ingredient: "garam-masala", qty: 0.25, unit: "tsp" },
         { ingredient: "salt", qty: 0.75, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "stir", title: "Mix the filling well", durationSec: 60, cue: "Evenly speckled with green and spice." },
     {

@@ -168,6 +168,7 @@ const recipe: Recipe = {
         { ingredient: "coriander-powder", qty: 1, unit: "tsp" },
       ],
       cue: "Oil turns golden-orange.",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "add", title: "Tip in the potato cubes", flame: "low" },
     { kind: "add", title: "Add the salt", flame: "low", items: [{ ingredient: "salt", qty: 0.75, unit: "tsp" }] },

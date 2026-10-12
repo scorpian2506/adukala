@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { buildScreens, ingredientMap, type FlatStep, type Screen } from "@/lib/recipes";
+import { buildScreens, ingredientMap, timerBlocks, type FlatStep, type Screen } from "@/lib/recipes";
 import { clearProgress, getProgress, saveProgress, saveSettings, useSettings } from "@/lib/store";
 import { useRecipe } from "@/lib/useRecipe";
 import {
@@ -58,7 +58,8 @@ interface Alert {
   current: boolean;
 }
 
-type Confirm = { kind: "running" | "notStarted" | "paused" | "whistles"; left: number };
+type Confirm = { kind: "running" | "notStarted" | "paused" | "whistles" | "mustStart" | "mustWait"; left: number };
+
 
 const timersKey = (recipeId: string) => `adukala.timers.${recipeId}`;
 function loadTimers(recipeId: string): BgTimer[] {
@@ -220,7 +221,11 @@ function Cook({ recipe }: { recipe: Recipe }) {
    */
   const requestNext = useCallback(() => {
     unlockAudio();
-    if (confirm) return go(1); // second "next" confirms
+    if (confirm) return confirm.kind === "mustWait" || confirm.kind === "mustStart" ? undefined : go(1); // second "next" confirms (never for a blocking timer)
+    if (screen.type === "step" && step && timer && !timer.fired && timerBlocks(step)) {
+      const left = timer.endAt !== null ? timeLeft(timer, Date.now()) : timer.remaining;
+      return setConfirm({ kind: timer.endAt === null && timer.remaining === timer.duration ? "mustStart" : "mustWait", left });
+    }
     if (screen.type === "step" && timer && !timer.fired) {
       if (timer.endAt !== null) return setConfirm({ kind: "running", left: timeLeft(timer, Date.now()) });
       return setConfirm({ kind: timer.remaining < timer.duration ? "paused" : "notStarted", left: timer.remaining });
@@ -306,6 +311,7 @@ function Cook({ recipe }: { recipe: Recipe }) {
   const pct = Math.max(0, Math.min(1, currentNumber / stepScreens.length));
 
   const timerRunning = timer?.endAt != null && !timer?.fired;
+  const mustWait = !!step && !!timer && !timer.fired && timerBlocks(step);
   const nextLabel =
     screen.type === "done"
       ? "Finish"
@@ -313,9 +319,13 @@ function Cook({ recipe }: { recipe: Recipe }) {
         ? screen.phase === "prep"
           ? "Let's begin"
           : "Turn on the stove"
-        : timerRunning
-          ? "Next · timer keeps running"
-          : "Next";
+        : mustWait
+          ? timerRunning
+            ? `Wait · ${clock(timeLeft(timer!, now))}`
+            : "Start the timer first"
+          : timerRunning
+            ? "Next · timer keeps running"
+            : "Next";
 
   return (
     <main className="app-h relative flex flex-col overflow-hidden bg-paper" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
@@ -391,7 +401,7 @@ function Cook({ recipe }: { recipe: Recipe }) {
         </button>
         <button
           onClick={() => (screen.type === "done" ? router.push("/") : requestNext())}
-          className="press flex min-h-[72px] flex-1 items-center justify-between rounded-[22px] bg-ink px-6 text-paper"
+          className={`press flex min-h-[72px] flex-1 items-center justify-between rounded-[22px] px-6 ${mustWait ? "bg-ink/35 text-paper" : "bg-ink text-paper"}`}
         >
           <span className="text-left">
             <span className="block text-[19px] font-medium leading-tight">{nextLabel}</span>
@@ -424,6 +434,11 @@ function Cook({ recipe }: { recipe: Recipe }) {
           onStay={() => setConfirm(null)}
           onNext={() => go(1)}
           onStartAndNext={startAndNext}
+          cue={step.cue}
+          onStartHere={() => {
+            setConfirm(null);
+            if (timer && timer.endAt === null) toggleTimer();
+          }}
         />
       )}
 

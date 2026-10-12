@@ -78,23 +78,54 @@ export function TimerDock({
 export function ConfirmSheet({
   confirm,
   title,
+  cue,
   onStay,
   onNext,
   onStartAndNext,
+  onStartHere,
 }: {
-  confirm: { kind: "running" | "notStarted" | "paused" | "whistles"; left: number };
+  confirm: { kind: "running" | "notStarted" | "paused" | "whistles" | "mustStart" | "mustWait"; left: number };
   title: string;
+  cue?: string;
   onStay: () => void;
   onNext: () => void;
   onStartAndNext: () => void;
+  onStartHere: () => void;
 }) {
   const time = formatDuration(Math.ceil(confirm.left));
+  if (confirm.kind === "mustStart" || confirm.kind === "mustWait") {
+    const start = confirm.kind === "mustStart";
+    return (
+      <div className="absolute inset-0 z-50 flex flex-col justify-end bg-ink/45 animate-fade" onClick={onStay} role="dialog" aria-modal="true" aria-labelledby="confirm-h">
+        <div className="safe-b rounded-t-[30px] bg-paper px-5 pt-3 animate-rise" onClick={(e) => e.stopPropagation()}>
+          <div className="mx-auto h-1 w-10 rounded-full bg-line-2" />
+          <h2 id="confirm-h" className="font-display mt-4 text-[32px] leading-none">
+            {start ? "Start the timer first" : "Wait for this step"}
+          </h2>
+          <p className="mt-2 text-[15px] leading-snug text-ink-2">
+            {start
+              ? `“${title}” takes ${time}. On the stove each step follows the last, so Next unlocks when this timer ends.`
+              : `${time} left on “${title}”. The next step needs this one finished first.`}
+          </p>
+          {cue && <p className="mt-3 rounded-2xl bg-paper-2 px-3.5 py-3 text-[14px] leading-snug">Look for: {cue}</p>}
+          <div className="mt-5 space-y-2 pb-2">
+            <button onClick={start ? onStartHere : onStay} className="press w-full rounded-2xl bg-ink py-4 text-[15px] font-medium text-paper">
+              {start ? "Start timer" : "OK, I'll wait"}
+            </button>
+            <button onClick={onNext} className="press w-full rounded-2xl border border-line-2 bg-card py-3.5 text-[14px] font-medium">
+              {start ? "It's already done — next" : "It's done early — next"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const copy = {
     running: { h: "Done with this step?", p: `“${title}” — the timer keeps running in the corner (${time} left) and will pop up when it's over.`, yes: "Yes, it's done — next" },
     notStarted: { h: "Timer not started", p: `“${title}” needs ${time}. Start the timer and carry on — it'll run in the corner and pop up when it's over.`, yes: "Skip timer, I'm done" },
     paused: { h: "Timer is paused", p: `“${title}” still has ${time} on the timer.`, yes: "Skip timer, I'm done" },
     whistles: { h: "Whistles not done", p: `You've still got ${confirm.left} whistle${confirm.left === 1 ? "" : "s"} to go. Only move on once you've heard them all.`, yes: "All whistles done — next" },
-  }[confirm.kind];
+  }[confirm.kind as "running" | "notStarted" | "paused" | "whistles"];
   return (
     <div className="absolute inset-0 z-50 flex flex-col justify-end bg-ink/45 animate-fade" onClick={onStay} role="dialog" aria-modal="true" aria-labelledby="confirm-h">
       <div className="safe-b rounded-t-[30px] bg-paper px-5 pt-3 animate-rise" onClick={(e) => e.stopPropagation()}>

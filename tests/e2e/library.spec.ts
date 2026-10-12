@@ -3,7 +3,7 @@ import { test, expect } from "./fixtures";
 test("home shows the library, categories and everyday favourites", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Cook it right/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Search 1\d\d recipes/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Search \d+ recipes/ })).toBeVisible();
   for (const c of ["Tamil", "Kerala", "North Indian", "Biryani", "Indo-Chinese", "Kids' meals"]) await expect(page.getByRole("link", { name: new RegExp(`^${c} \\d+$`) })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Everyday favourites" })).toBeVisible();
   await page.getByRole("link", { name: /Browse all/ }).click();

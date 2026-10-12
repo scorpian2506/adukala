@@ -181,6 +181,7 @@ const recipe: Recipe = {
         { ingredient: "coriander-powder", qty: 1, unit: "tsp" },
         { ingredient: "pepper", qty: 0.5, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "stir", title: "Stir the spices for 1 minute", flame: "low", durationSec: 60, cue: "Smells toasty and the oil turns red." },
     { kind: "add", title: "Add the chopped tomato", flame: "medium", items: [{ ingredient: "tomato", qty: 100, unit: "g" }] },

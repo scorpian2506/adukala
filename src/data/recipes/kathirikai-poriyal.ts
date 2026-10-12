@@ -153,6 +153,7 @@ const recipe: Recipe = {
         { ingredient: "sambar-powder", qty: 1.5, unit: "tsp" },
         { ingredient: "salt", qty: 0.75, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     {
       kind: "add",

@@ -237,6 +237,7 @@ const recipe: Recipe = {
         { ingredient: "salt", qty: 0.25, unit: "tsp" },
         { ingredient: "pepper", qty: 0.25, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "stir", title: "Stir for 30 seconds", flame: "medium", durationSec: 30, cue: "Sauce bubbles and smells tangy." },
     { kind: "stir", title: "Stir the slurry again", detail: "Cornflour settles at the bottom of the cup.", flame: "medium", durationSec: 10 },

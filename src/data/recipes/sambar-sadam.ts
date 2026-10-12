@@ -207,6 +207,7 @@ const recipe: Recipe = {
     {
       kind: "add",
       title: "Add sambar powder and turmeric",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       flame: "low",
       items: [
         { ingredient: "sambar-powder", qty: 1.5, unit: "tbsp" },

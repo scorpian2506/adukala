@@ -179,6 +179,7 @@ const recipe: Recipe = {
         { ingredient: "pepper", qty: 0.25, unit: "tsp" },
       ],
       cue: "Smells spicy and the oil turns red.",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "add", title: "Tip in the drained yam", flame: "low" },
     { kind: "add", title: "Add the remaining salt", flame: "medium", items: [{ ingredient: "salt", qty: 0.25, unit: "tsp" }] },

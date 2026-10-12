@@ -31,7 +31,7 @@ const recipe: Recipe = {
     { id: "cloves", name: "Cloves", native: "Krambu", qty: 3, unit: "pc", group: "spice" },
     { id: "cardamom", name: "Green cardamom", native: "Elakkai", qty: 2, unit: "pc", group: "spice" },
     { id: "star-anise", name: "Star anise", native: "Annachi poo", qty: 1, unit: "pc", group: "spice" },
-    { id: "coconut", name: "Grated coconut", native: "Thengai thuruval", qty: 40, unit: "g", approx: "about 1/3 cup, fresh or frozen", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 20, unit: "g", approx: "about 1/4 cup, unsweetened", group: "main" },
     { id: "water", name: "Water", qty: 350, unit: "ml", group: "liquid" },
     { id: "oil", name: "Gingelly (sesame) oil or any oil", native: "Nallennai", qty: 3, unit: "tbsp", group: "tempering", tag: "oil" },
     { id: "curry-leaves", name: "Curry leaves", native: "Kariveppilai", qty: 15, unit: "pc", approx: "about 1 large sprig", group: "tempering" },
@@ -94,9 +94,9 @@ const recipe: Recipe = {
     },
     {
       kind: "measure",
-      title: "Measure the grated coconut",
+      title: "Measure the desiccated coconut",
       equipment: "bowl",
-      items: [{ ingredient: "coconut", qty: 40, unit: "g" }],
+      items: [{ ingredient: "coconut", qty: 20, unit: "g" }],
     },
     {
       kind: "measure",
@@ -151,13 +151,14 @@ const recipe: Recipe = {
       durationSec: 180,
       cue: "Coriander seeds turn a shade darker and smell toasty.",
     },
-    { kind: "add", title: "Add the grated coconut", flame: "low", items: [{ ingredient: "coconut", qty: 40, unit: "g" }] },
+    { kind: "add", title: "Add the desiccated coconut", flame: "low", items: [{ ingredient: "coconut", qty: 20, unit: "g" }] },
     {
       kind: "stir",
-      title: "Roast the coconut for 3 minutes",
+      title: "Roast the coconut for 2 minutes",
+      detail: "Keep stirring nonstop on low flame.",
       flame: "low",
-      durationSec: 180,
-      cue: "Coconut turns light golden brown.",
+      durationSec: 120,
+      cue: "Light golden brown; desiccated coconut browns fast, so don't walk away.",
     },
     { kind: "flame", title: "Turn off the flame", flame: "off" },
     {
@@ -216,6 +217,7 @@ const recipe: Recipe = {
         { ingredient: "tomato", qty: 150, unit: "g" },
         { ingredient: "turmeric", qty: 0.25, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     {
       kind: "stir",

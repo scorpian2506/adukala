@@ -162,6 +162,7 @@ const recipe: Recipe = {
         { ingredient: "coriander-powder", qty: 2, unit: "tsp" },
       ],
       cue: "Spices smell toasty, not burnt.",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     {
       kind: "add",

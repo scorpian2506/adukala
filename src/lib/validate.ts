@@ -89,6 +89,19 @@ export function validateRecipe(r: Recipe, opts: { seed?: boolean } = {}): Issue[
   });
   r.cook.forEach((s, i) => checkStep(s, `cook[${i}]`));
 
+  // Timers: on the stove every step waits for the one before it, so heat/stir must be timed.
+  // Only passive cook steps (resting dough, marinating) may run in the background.
+  r.cook.forEach((s, i) => {
+    const where = `cook[${i}]`;
+    if ((s.kind === "heat" || s.kind === "stir") && !s.durationSec) err(`${where} ${s.kind} step needs durationSec (the app waits for it)`);
+    if (s.background && !["wait", "soak", "note"].includes(s.kind)) err(`${where} only wait/soak/note steps may run in the background`);
+    if (s.background && (s.durationSec ?? 0) < 300) err(`${where} background timers must be 5 minutes or more`);
+    if (s.background && s.flame && s.flame !== "off") err(`${where} a background step can't need a flame`);
+  });
+  r.prep.forEach((s, i) => {
+    if (s.background) warn(`prep[${i}] prep timers already run in the background; drop "background"`);
+  });
+
   // totals
   for (const ing of r.ingredients) {
     const total = sums.get(ing.id) ?? 0;

@@ -140,6 +140,7 @@ const recipe: Recipe = {
     {
       kind: "stir",
       title: "Roast for 4 minutes",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       detail: "Stir gently every minute so the spices coat the okra without burning.",
       flame: "low",
       durationSec: 240,

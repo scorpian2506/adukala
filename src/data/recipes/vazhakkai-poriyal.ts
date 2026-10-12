@@ -168,6 +168,7 @@ const recipe: Recipe = {
     {
       kind: "add",
       title: "Add chilli powder and remaining salt",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       flame: "medium",
       items: [
         { ingredient: "chilli-powder", qty: 1, unit: "tsp" },

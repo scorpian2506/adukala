@@ -140,6 +140,7 @@ const recipe: Recipe = {
         { ingredient: "chilli-powder", qty: 0.5, unit: "tsp" },
         { ingredient: "salt", qty: 0.5, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "stir", title: "Stir for 1 minute", flame: "low", durationSec: 60, cue: "Oil shines at the edges." },
     { kind: "add", title: "Add the crumbled paneer", flame: "medium", items: [{ ingredient: "paneer", qty: 200, unit: "g" }] },

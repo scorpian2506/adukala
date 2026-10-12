@@ -195,6 +195,7 @@ export const rajmaMasala: Recipe = {
     {
       kind: "add",
       title: "Add powdered spices and salt",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       detail: "Turn the flame to low first so the spices don't burn.",
       flame: "low",
       items: [

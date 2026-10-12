@@ -28,6 +28,15 @@ export function flattenSteps(r: Recipe): FlatStep[] {
   return [...r.prep.map((s, i) => ({ ...s, phase: "prep" as const, phaseIndex: i, phaseTotal: r.prep.length })), ...cook];
 }
 
+/**
+ * Stove steps run one after another in the same pan, so their timer must finish
+ * before the next step. Prep timers (soak, marinate), pressure steps (they go by
+ * whistles) and cook steps marked `background` don't block.
+ */
+export function timerBlocks(step: Pick<FlatStep, "phase" | "durationSec" | "kind" | "background">) {
+  return step.phase === "cook" && !!step.durationSec && step.kind !== "pressure" && !step.background;
+}
+
 export function ingredientMap(r: Recipe): Record<string, Ingredient> {
   return Object.fromEntries(r.ingredients.map((i) => [i.id, i]));
 }

@@ -202,6 +202,7 @@ export const lemonRice: Recipe = {
         { ingredient: "hing", qty: 0.125, unit: "tsp" },
       ],
       cue: "Oil turns bright yellow.",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "flame", title: "Turn off the flame", flame: "off" },
     {

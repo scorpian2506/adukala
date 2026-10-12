@@ -170,6 +170,7 @@ const recipe: Recipe = {
     {
       kind: "wait",
       title: "Rest the batter for 20 minutes",
+      background: true, // runs while you get on with the next steps
       detail: "The rava soaks up the curd and swells, which makes the idlis soft.",
       durationSec: 1200,
       equipment: "bowl",

@@ -30,7 +30,7 @@ const recipe: Recipe = {
     { id: "coriander-seeds", name: "Coriander seeds", native: "Malli vidhai", qty: 1.5, unit: "tbsp", group: "spice", section: "For the roasted paste" },
     { id: "fenugreek", name: "Fenugreek seeds", native: "Vendhayam", qty: 0.25, unit: "tsp", group: "spice", section: "For the roasted paste" },
     { id: "dried-red-chilli", name: "Dried red chilli", native: "Vara milagai", qty: 5, unit: "pc", approx: "4 for the paste, 1 for tempering", group: "spice", tag: "chilli" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thengai thuruval", qty: 20, unit: "g", approx: "about 3 tbsp", group: "main", section: "For the roasted paste" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 10, unit: "g", approx: "about 2 tbsp, unsweetened", group: "main", section: "For the roasted paste" },
     { id: "jaggery", name: "Jaggery (grated)", native: "Vellam", qty: 1, unit: "tsp", approx: "about 5 g", group: "spice", tag: "sugar" },
     { id: "salt", name: "Salt", qty: 1.25, unit: "tsp", approx: "about 7.5 g", tag: "salt" },
     { id: "oil", name: "Oil (gingelly or any)", native: "Nallennai", qty: 4, unit: "tsp", approx: "1 tsp for roasting, 3 tsp for tempering", group: "tempering", tag: "oil" },
@@ -93,10 +93,11 @@ const recipe: Recipe = {
     },
     {
       kind: "measure",
-      title: "Measure the grated coconut",
+      title: "Measure the desiccated coconut",
       equipment: "bowl",
-      items: [{ ingredient: "coconut", qty: 20, unit: "g" }],
+      items: [{ ingredient: "coconut", qty: 10, unit: "g" }],
     },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 1 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     {
       kind: "measure",
       title: "Measure the tempering spices",
@@ -210,7 +211,7 @@ const recipe: Recipe = {
       equipment: "mixer",
       durationSec: 60,
       items: [
-        { ingredient: "coconut", qty: 20, unit: "g" },
+        { ingredient: "coconut", qty: 10, unit: "g" },
         { ingredient: "water", qty: 80, unit: "ml" },
       ],
       cue: "A smooth, reddish-brown paste.",
@@ -265,6 +266,7 @@ const recipe: Recipe = {
     {
       kind: "add",
       title: "Add tamarind water, water, salt, jaggery",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       detail: "Pour in all the strained tamarind water along with these.",
       flame: "medium",
       items: [

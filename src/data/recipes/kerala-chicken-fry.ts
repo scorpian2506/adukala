@@ -63,6 +63,7 @@ const recipe: Recipe = {
         { ingredient: "rice-flour", qty: 1, unit: "tbsp" },
         { ingredient: "salt", qty: 1, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     {
       kind: "stir",

@@ -236,6 +236,7 @@ export const sambar: Recipe = {
     {
       kind: "add",
       title: "Add the sambar powder",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       flame: "medium",
       items: [{ ingredient: "sambar-powder", qty: 1.5, unit: "tbsp" }],
     },

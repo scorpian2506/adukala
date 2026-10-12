@@ -33,12 +33,12 @@ export async function setStorage(page: Page, values: Record<string, unknown>) {
 export async function cookThrough(page: Page, max = 200) {
   for (let i = 0; i < max; i++) {
     if (await page.getByRole("button", { name: "Finish" }).isVisible()) return i;
-    const next = page.locator("main button").filter({ hasText: /^(Next|Let's begin|Turn on the stove)/ }).last();
+    const next = page.locator("main button").filter({ hasText: /^(Next|Let's begin|Turn on the stove|Start the timer first|Wait)/ }).last();
     await next.click();
     // Timed steps ask for confirmation before moving on.
     const confirm = page.getByRole("dialog");
     if (await confirm.isVisible().catch(() => false)) {
-      await confirm.getByRole("button", { name: /Skip timer, I'm done|Yes, it's done|All whistles done/ }).click();
+      await confirm.getByRole("button", { name: /Skip timer, I'm done|Yes, it's done|All whistles done|It's already done — next|It's done early — next/ }).click();
     }
   }
   throw new Error("never reached the finish screen");

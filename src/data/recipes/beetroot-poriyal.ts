@@ -9,7 +9,7 @@ const recipe: Recipe = {
   course: "side",
   kidFriendly: true,
   tags: ["beetroot stir fry", "beetroot thoran", "beetroot curry", "beetroot palya", "beet poriyal", "poriyal"],
-  blurb: "Sweet, ruby-red beetroot cooked soft with mustard and red chilli, tossed with fresh coconut.",
+  blurb: "Sweet, ruby-red beetroot cooked soft with mustard and red chilli, tossed with coconut.",
   servings: 3,
   prepMin: 15,
   cookMin: 18,
@@ -29,7 +29,7 @@ const recipe: Recipe = {
     { id: "dried-red-chilli", name: "Dried red chilli", native: "Vara milagai", qty: 2, unit: "pc", group: "tempering", tag: "chilli" },
     { id: "curry-leaves", name: "Curry leaves", native: "Karuveppilai", qty: 8, unit: "pc", approx: "about 1 small sprig", group: "tempering" },
     { id: "hing", name: "Asafoetida", native: "Perungayam", qty: 0.125, unit: "tsp", group: "tempering" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thengai thuruval", qty: 30, unit: "g", approx: "about 1/4 cup", group: "garnish" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 15, unit: "g", approx: "about 3 tbsp, unsweetened", group: "garnish" },
   ],
   prep: [
     {
@@ -79,11 +79,11 @@ const recipe: Recipe = {
     },
     {
       kind: "measure",
-      title: "Measure the grated coconut",
-      detail: "Frozen grated coconut works too; thaw it first.",
+      title: "Measure the desiccated coconut",
       equipment: "bowl",
-      items: [{ ingredient: "coconut", qty: 30, unit: "g" }],
+      items: [{ ingredient: "coconut", qty: 15, unit: "g" }],
     },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 2 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     {
       kind: "measure",
       title: "Measure the salt and oil",
@@ -142,7 +142,7 @@ const recipe: Recipe = {
       durationSec: 120,
       cue: "Beetroot looks glossy and coated in oil.",
     },
-    { kind: "add", title: "Add the salt", flame: "medium", items: [{ ingredient: "salt", qty: 0.75, unit: "tsp" }] },
+    { kind: "add", title: "Add the salt", flame: "medium", items: [{ ingredient: "salt", qty: 0.75, unit: "tsp" }], tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt." },
     {
       kind: "add",
       title: "Sprinkle in the water",
@@ -169,7 +169,7 @@ const recipe: Recipe = {
       cue: "No water left at the bottom of the kadai.",
     },
     { kind: "flame", title: "Turn off the flame", flame: "off" },
-    { kind: "add", title: "Add the grated coconut", flame: "off", items: [{ ingredient: "coconut", qty: 30, unit: "g" }] },
+    { kind: "add", title: "Add the soaked coconut", flame: "off", items: [{ ingredient: "coconut", qty: 15, unit: "g" }] },
     {
       kind: "stir",
       title: "Mix for 30 seconds",

@@ -9,7 +9,7 @@ const recipe: Recipe = {
   course: "snack",
   kidFriendly: true,
   tags: ["kondakadalai sundal", "konda kadalai sundal", "black chana sundal", "kala chana sundal", "chana sundal", "sundal", "navarathri sundal", "beach sundal", "tea time snack"],
-  blurb: "Soft-cooked black chickpeas tossed with mustard, curry leaves and fresh coconut.",
+  blurb: "Soft-cooked black chickpeas tossed with mustard, curry leaves and coconut.",
   servings: 3,
   prepMin: 10,
   cookMin: 35,
@@ -28,7 +28,7 @@ const recipe: Recipe = {
     { id: "dried-red-chilli", name: "Dried red chilli", native: "Vara milagai", qty: 2, unit: "pc", approx: "broken in half", group: "tempering", tag: "chilli" },
     { id: "curry-leaves", name: "Curry leaves", native: "Karuveppilai", qty: 10, unit: "pc", approx: "about 1 sprig", group: "tempering" },
     { id: "hing", name: "Asafoetida", native: "Perungayam", qty: 0.125, unit: "tsp", group: "tempering" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thengai thuruval", qty: 30, unit: "g", approx: "about 1/4 cup", group: "garnish" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 15, unit: "g", approx: "about 3 tbsp, unsweetened", group: "garnish" },
   ],
   prep: [
     {
@@ -75,7 +75,8 @@ const recipe: Recipe = {
         { ingredient: "hing", qty: 0.125, unit: "tsp" },
       ],
     },
-    { kind: "measure", title: "Measure the grated coconut", equipment: "bowl", items: [{ ingredient: "coconut", qty: 30, unit: "g" }] },
+    { kind: "measure", title: "Measure the desiccated coconut", equipment: "bowl", items: [{ ingredient: "coconut", qty: 15, unit: "g" }] },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 2 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     { kind: "measure", title: "Measure the coconut oil", equipment: "bowl", items: [{ ingredient: "oil", qty: 1, unit: "tbsp" }] },
   ],
   cook: [
@@ -163,7 +164,7 @@ const recipe: Recipe = {
       cue: "Dry and glossy, with no water left in the pan.",
     },
     { kind: "flame", title: "Turn off the flame", flame: "off" },
-    { kind: "add", title: "Add the grated coconut", items: [{ ingredient: "coconut", qty: 30, unit: "g" }] },
+    { kind: "add", title: "Add the soaked coconut", items: [{ ingredient: "coconut", qty: 15, unit: "g" }] },
     { kind: "stir", title: "Mix the coconut in", detail: "Toss gently with the ladle.", durationSec: 20, equipment: "ladle" },
     { kind: "serve", title: "Serve warm", detail: "Serve in small bowls as an evening snack; it is best the same day." },
   ],

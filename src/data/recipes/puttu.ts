@@ -9,7 +9,7 @@ const recipe: Recipe = {
   course: "breakfast",
   kidFriendly: true,
   tags: ["arisi puttu", "rice puttu", "steamed rice cake", "puttu kadala", "puttu without puttu maker"],
-  blurb: "Damp rice flour steamed in layers with fresh coconut; soft, crumbly and very plain on purpose.",
+  blurb: "Damp rice flour steamed in layers with coconut; soft, crumbly and very plain on purpose.",
   servings: 3,
   prepMin: 25,
   cookMin: 20,
@@ -22,7 +22,7 @@ const recipe: Recipe = {
     { id: "puttu-flour", name: "Puttu flour (roasted rice flour)", native: "Puttu podi", qty: 200, unit: "g", approx: "about 1.5 cups; sold as puttu podi", group: "main", tag: "carb" },
     { id: "salt", name: "Salt", qty: 0.5, unit: "tsp", approx: "about 3 g", tag: "salt" },
     { id: "water", name: "Lukewarm water (for the flour)", qty: 150, unit: "ml", group: "liquid" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thenga chirakiyathu", qty: 80, unit: "g", approx: "about 1 cup, loosely packed", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thenga chirakiyathu", qty: 40, unit: "g", approx: "about 3/4 cup, unsweetened", group: "main" },
     { id: "water-2", name: "Water (for steaming)", qty: 500, unit: "ml", group: "liquid" },
   ],
   prep: [
@@ -86,11 +86,12 @@ const recipe: Recipe = {
     },
     {
       kind: "measure",
-      title: "Measure the grated coconut",
+      title: "Measure the desiccated coconut",
       detail: "You will use half under the flour and half on top.",
       equipment: "bowl",
-      items: [{ ingredient: "coconut", qty: 80, unit: "g" }],
+      items: [{ ingredient: "coconut", qty: 40, unit: "g" }],
     },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Sprinkle 3 tbsp warm water over it, mix, and leave 10 minutes so it turns soft and moist.", durationSec: 600 },
     {
       kind: "note",
       title: "Get the idli plates ready",
@@ -101,7 +102,7 @@ const recipe: Recipe = {
       kind: "add",
       title: "Sprinkle coconut into each cup",
       detail: "Put about 1 tsp of coconut in the bottom of every idli cup.",
-      items: [{ ingredient: "coconut", qty: 40, unit: "g" }],
+      items: [{ ingredient: "coconut", qty: 20, unit: "g" }],
     },
     {
       kind: "add",
@@ -112,7 +113,7 @@ const recipe: Recipe = {
     {
       kind: "add",
       title: "Top each cup with coconut",
-      items: [{ ingredient: "coconut", qty: 40, unit: "g" }],
+      items: [{ ingredient: "coconut", qty: 20, unit: "g" }],
     },
   ],
   cook: [

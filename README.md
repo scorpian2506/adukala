@@ -12,7 +12,7 @@ Measured Indian cooking, one step at a time. Adukala is a mobile-first web app t
 
 The core app needs no AI and no API key.
 
-1. **Library.** 176 validated recipes: Tamil and Kerala home cooking, North Indian curries and breads, biryanis, Indo-Chinese and kids' meals. Add a file to `src/data/recipes/` and run `npm run gen:recipes`.
+1. **Library.** 216 validated recipes: Tamil and Kerala home cooking, North Indian curries and breads, biryanis, Indo-Chinese and kids' meals. Add a file to `src/data/recipes/` and run `npm run gen:recipes`.
    - **Search** forgives spelling (biriyani/biryani, kulambu/kuzhambu, meen = fish) and filters by cuisine, kids, veg, sweets, under 30 minutes.
    - **Star** favourites and **pin** weekly dishes to the top of Home.
 2. **YouTube converter (free, rule-based).** Paste a recipe video link. Adukala finds the cook's own written recipe, then converts it into measured, timed steps with deterministic rules (`src/lib/convert.ts`). The recipe comes from either:
@@ -63,8 +63,8 @@ From datacenter IPs such as Vercel's, YouTube blocks its watch page and player A
 ## Tests
 
 ```bash
-npm test            # 321 unit tests (Vitest): recipes, search, converter, accounts and sync against real Postgres
-npm run test:e2e    # 36 browser tests (Playwright, iPhone viewport, production build, stubbed APIs)
+npm test            # 369 unit tests (Vitest): recipes, search, converter, accounts and sync against real Postgres
+npm run test:e2e    # 42 browser tests (Playwright, iPhone viewport, production build, stubbed APIs)
 npm run test:live   # opt-in: real YouTube calls (E2E_BASE_URL=https://… to hit a deployment)
 npm run test:batch  # real dishes → real videos → converter → quality rules (BASE=https://…)
 npm run validate    # quality rules for the recipe library

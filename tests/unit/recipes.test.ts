@@ -9,6 +9,7 @@ import {
   parseOfflineTweak,
   scaleRecipe,
   stepNumberAt,
+  timerBlocks,
 } from "@/lib/recipes";
 import { validateRecipe } from "@/lib/validate";
 import type { Recipe } from "@/lib/types";
@@ -109,5 +110,69 @@ describe("studio helpers", () => {
     expect(parseOfflineTweak("less spicy please")).toEqual({ servings: undefined, tweaks: ["less_spicy"] });
     expect(parseOfflineTweak("low oil and kid friendly for 4 servings").tweaks).toEqual(["low_oil", "kid_friendly"]);
     expect(parseOfflineTweak("add 2 tomatoes")).toEqual({ servings: undefined, tweaks: [] });
+  });
+});
+
+describe("timers that block the next step", () => {
+  const step = (o: Partial<Parameters<typeof timerBlocks>[0]>) => ({ phase: "cook" as const, kind: "stir" as const, durationSec: 60, ...o });
+  it("stove steps with a timer block", () => {
+    expect(timerBlocks(step({}))).toBe(true);
+    expect(timerBlocks(step({ kind: "heat" }))).toBe(true);
+  });
+  it("prep timers, pressure steps, background rests and untimed steps don't", () => {
+    expect(timerBlocks(step({ phase: "prep", kind: "soak" }))).toBe(false);
+    expect(timerBlocks(step({ kind: "pressure" }))).toBe(false);
+    expect(timerBlocks(step({ kind: "wait", background: true }))).toBe(false);
+    expect(timerBlocks(step({ durationSec: undefined }))).toBe(false);
+  });
+  it("every stove heat/stir step in the library has a timer", () => {
+    for (const r of SEED_RECIPES) for (const s of r.cook) if (s.kind === "heat" || s.kind === "stir") expect(s.durationSec, `${r.id}: ${s.title}`).toBeGreaterThan(0);
+  });
+  it("aloo paratha's dough rest runs alongside cooking the potatoes", () => {
+    const rest = findSeed("aloo-paratha")!.cook.find((s) => /rest 20/i.test(s.title))!;
+    expect(rest.background).toBe(true);
+  });
+});
+
+describe("validator timer rules", () => {
+  const base = findSeed("dal-tadka")!;
+  it("rejects a stove stir step without a timer", () => {
+    const bad = { ...base, cook: base.cook.map((s, i) => (i === base.cook.findIndex((x) => x.kind === "stir") ? { ...s, durationSec: undefined } : s)) };
+    expect(validateRecipe(bad).some((i) => i.level === "error" && /needs durationSec/.test(i.msg))).toBe(true);
+  });
+  it("rejects background on an active or short step", () => {
+    const idx = base.cook.findIndex((x) => x.kind === "stir");
+    const bad = { ...base, cook: base.cook.map((s, i) => (i === idx ? { ...s, background: true } : s)) };
+    const msgs = validateRecipe(bad).filter((i) => i.level === "error").map((i) => i.msg);
+    expect(msgs.some((m) => /only wait\/soak\/note/.test(m))).toBe(true);
+  });
+});
+
+describe("household preferences", () => {
+  const text = (r: (typeof SEED_RECIPES)[number]) => JSON.stringify(r).toLowerCase();
+  it("uses desiccated coconut, never fresh or grated", () => {
+    for (const r of SEED_RECIPES) {
+      for (const i of r.ingredients) {
+        if (/coconut/i.test(i.name) && !/(milk|oil|cream|water|pieces|bits|vinegar|sugar)/i.test(i.name)) expect(i.name, r.id).toMatch(/desiccated/i);
+      }
+      expect(text(r), r.id).not.toMatch(/(fresh|freshly) grated coconut|grated fresh coconut|scraped coconut/);
+    }
+  });
+  it("keeps Maggi Masala-ae-Magic optional: a tip with the sachet size, never an ingredient", () => {
+    let tips = 0;
+    for (const r of SEED_RECIPES) {
+      expect(r.ingredients.some((i) => /maggi/i.test(i.name)), r.id).toBe(false);
+      for (const s of [...r.prep, ...r.cook]) {
+        if (/maggi/i.test(`${s.title} ${s.detail ?? ""}`)) throw new Error(`${r.id}: Maggi must only be a tip`);
+        if (s.tip && /maggi/i.test(s.tip)) {
+          tips++;
+          expect(s.tip).toMatch(/1 sachet \(6 g\)/);
+        }
+      }
+      if (["dessert", "drink"].includes(r.course) || /biryani|payasam|pradhaman/.test(r.id)) {
+        expect([...r.prep, ...r.cook].some((s) => /maggi/i.test(s.tip ?? "")), r.id).toBe(false);
+      }
+    }
+    expect(tips).toBeGreaterThan(50);
   });
 });

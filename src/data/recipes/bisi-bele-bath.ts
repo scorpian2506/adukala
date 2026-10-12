@@ -200,6 +200,7 @@ const recipe: Recipe = {
         { ingredient: "water", qty: 300, unit: "ml" },
         { ingredient: "salt", qty: 1.75, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     {
       kind: "wait",

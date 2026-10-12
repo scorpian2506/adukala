@@ -157,6 +157,7 @@ const recipe: Recipe = {
         { ingredient: "coriander-powder", qty: 1.5, unit: "tsp" },
         { ingredient: "salt", qty: 1, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "stir", title: "Stir the masala for 2 minutes", flame: "low", durationSec: 120, cue: "Oil separates at the edges." },
     { kind: "add", title: "Return the fried okra", flame: "low" },

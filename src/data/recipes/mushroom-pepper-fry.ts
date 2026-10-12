@@ -143,6 +143,7 @@ const recipe: Recipe = {
         { ingredient: "coriander-powder", qty: 1, unit: "tsp" },
         { ingredient: "salt", qty: 0.75, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     {
       kind: "stir",

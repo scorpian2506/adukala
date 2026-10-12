@@ -19,7 +19,7 @@ const recipe: Recipe = {
   equipment: ["kadai", "mixer", "tadka_pan", "knife", "bowl", "sieve"],
   ingredients: [
     { id: "coriander-leaves", name: "Coriander leaves with tender stems", native: "Kothamalli", qty: 50, unit: "g", approx: "about 1 large bunch, 2 cups loosely packed", group: "main" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thengai thuruval", qty: 30, unit: "g", approx: "about 1/3 cup", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 15, unit: "g", approx: "about 1/4 cup, unsweetened", group: "main" },
     { id: "urad-dal", name: "Urad dal (split, skinned)", native: "Ulutham paruppu", qty: 3.5, unit: "tsp", approx: "3 tsp for roasting, 1/2 tsp for tempering", group: "main", tag: "protein" },
     { id: "dried-red-chilli", name: "Dried red chilli", native: "Vara milagai", qty: 3, unit: "pc", approx: "2 for roasting, 1 for tempering", group: "main", tag: "chilli" },
     { id: "hing", name: "Asafoetida", native: "Perungayam", qty: 0.125, unit: "tsp", group: "spice" },
@@ -54,10 +54,11 @@ const recipe: Recipe = {
     },
     {
       kind: "measure",
-      title: "Measure the grated coconut",
+      title: "Measure the desiccated coconut",
       equipment: "bowl",
-      items: [{ ingredient: "coconut", qty: 30, unit: "g" }],
+      items: [{ ingredient: "coconut", qty: 15, unit: "g" }],
     },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 2 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     {
       kind: "measure",
       title: "Measure the roasting spices",
@@ -144,7 +145,7 @@ const recipe: Recipe = {
       equipment: "mixer",
       durationSec: 45,
       items: [
-        { ingredient: "coconut", qty: 30, unit: "g" },
+        { ingredient: "coconut", qty: 15, unit: "g" },
         { ingredient: "tamarind", qty: 4, unit: "g" },
         { ingredient: "salt", qty: 0.5, unit: "tsp" },
         { ingredient: "water", qty: 60, unit: "ml" },

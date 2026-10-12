@@ -168,6 +168,7 @@ export const ravaUpma: Recipe = {
     {
       kind: "add",
       title: "Pour in water and salt",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       flame: "high",
       items: [
         { ingredient: "water", qty: 600, unit: "ml" },

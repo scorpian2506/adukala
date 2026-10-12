@@ -7,7 +7,7 @@ export const coconutChutney: Recipe = {
   region: "south",
   cuisine: "tamil",
   course: "side",
-  blurb: "Fresh coconut ground with green chilli and roasted gram, topped with crackling mustard.",
+  blurb: "Coconut ground with green chilli and roasted gram, topped with crackling mustard.",
   servings: 3,
   prepMin: 10,
   cookMin: 8,
@@ -17,7 +17,7 @@ export const coconutChutney: Recipe = {
   hue: "coconut",
   equipment: ["mixer", "tadka_pan", "knife", "bowl"],
   ingredients: [
-    { id: "coconut", name: "Fresh grated coconut", native: "Thengai thuruval", qty: 80, unit: "g", approx: "about 1 cup, packed loosely", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 40, unit: "g", approx: "about 3/4 cup, unsweetened", group: "main" },
     { id: "roasted-chana", name: "Roasted chana dal", native: "Pottukadalai", qty: 20, unit: "g", approx: "about 2 tbsp", group: "main", tag: "protein" },
     { id: "green-chilli", name: "Green chilli", native: "Pachai milagai", qty: 2, unit: "pc", approx: "about 6 g", group: "main", tag: "chilli" },
     { id: "ginger", name: "Ginger", native: "Inji", qty: 3, unit: "g", approx: "about 1/2 inch piece", group: "main" },
@@ -32,11 +32,11 @@ export const coconutChutney: Recipe = {
   prep: [
     {
       kind: "measure",
-      title: "Measure the grated coconut",
-      detail: "If using frozen coconut, thaw it in a bowl for 15 minutes first.",
+      title: "Measure the desiccated coconut",
       equipment: "bowl",
-      items: [{ ingredient: "coconut", qty: 80, unit: "g" }],
+      items: [{ ingredient: "coconut", qty: 40, unit: "g" }],
     },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 4 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     {
       kind: "chop",
       title: "Roughly chop the green chillies",
@@ -93,7 +93,7 @@ export const coconutChutney: Recipe = {
       equipment: "mixer",
       durationSec: 45,
       items: [
-        { ingredient: "coconut", qty: 80, unit: "g" },
+        { ingredient: "coconut", qty: 40, unit: "g" },
         { ingredient: "roasted-chana", qty: 20, unit: "g" },
         { ingredient: "green-chilli", qty: 2, unit: "pc" },
         { ingredient: "ginger", qty: 3, unit: "g" },

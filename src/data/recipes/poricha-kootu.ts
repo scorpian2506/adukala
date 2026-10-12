@@ -20,7 +20,7 @@ const recipe: Recipe = {
   equipment: ["pressure_cooker", "saucepan", "pan", "tadka_pan", "mixer", "knife", "bowl", "sieve", "ladle"],
   ingredients: [
     { id: "moong-dal", name: "Moong dal (split yellow)", native: "Pasi paruppu", qty: 75, unit: "g", approx: "a heaped 1/3 cup", group: "main", tag: "protein" },
-    { id: "water", name: "Water", qty: 555, unit: "ml", group: "liquid" },
+    { id: "water", name: "Water", qty: 525, unit: "ml", group: "liquid" },
     { id: "chow-chow", name: "Chow chow (chayote) or snake gourd", native: "Chow chow / pudalangai", qty: 250, unit: "g", approx: "about 1 medium chow chow", group: "main" },
     { id: "turmeric", name: "Turmeric powder", native: "Manjal thool", qty: 0.25, unit: "tsp", group: "spice" },
     { id: "salt", name: "Salt", qty: 1, unit: "tsp", approx: "about 6 g", tag: "salt" },
@@ -29,7 +29,7 @@ const recipe: Recipe = {
     { id: "pepper", name: "Black peppercorns", native: "Milagu", qty: 1, unit: "tsp", group: "spice" },
     { id: "cumin", name: "Cumin seeds", native: "Seeragam", qty: 0.5, unit: "tsp", group: "spice" },
     { id: "dried-red-chilli", name: "Dried red chilli", native: "Vara milagai", qty: 1, unit: "pc", group: "spice", tag: "chilli" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thengai thuruval", qty: 40, unit: "g", approx: "about 1/2 cup", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 20, unit: "g", approx: "about 6 tbsp, unsweetened", group: "main" },
     { id: "mustard", name: "Mustard seeds", native: "Kadugu", qty: 1, unit: "tsp", group: "tempering" },
     { id: "curry-leaves", name: "Curry leaves", native: "Karuveppilai", qty: 10, unit: "pc", approx: "about 1 sprig", group: "tempering" },
     { id: "hing", name: "Asafoetida", native: "Perungayam", qty: 0.125, unit: "tsp", group: "tempering" },
@@ -69,7 +69,8 @@ const recipe: Recipe = {
         { ingredient: "dried-red-chilli", qty: 1, unit: "pc" },
       ],
     },
-    { kind: "measure", title: "Measure the grated coconut", equipment: "bowl", items: [{ ingredient: "coconut", qty: 40, unit: "g" }] },
+    { kind: "measure", title: "Measure the desiccated coconut", equipment: "bowl", items: [{ ingredient: "coconut", qty: 20, unit: "g" }] },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 2 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     {
       kind: "measure",
       title: "Measure the tempering spices",
@@ -168,12 +169,12 @@ const recipe: Recipe = {
     {
       kind: "grind",
       title: "Grind spices with coconut and water",
-      detail: "Grind the fried spices, coconut and water to a smooth paste.",
+      detail: "Grind the fried spices, the coconut with its soaking water, and this water to a smooth paste.",
       durationSec: 60,
       equipment: "mixer",
       items: [
-        { ingredient: "coconut", qty: 40, unit: "g" },
-        { ingredient: "water", qty: 80, unit: "ml" },
+        { ingredient: "coconut", qty: 20, unit: "g" },
+        { ingredient: "water", qty: 50, unit: "ml" },
       ],
       cue: "Smooth, thick paste with tiny pepper flecks.",
     },
@@ -186,7 +187,7 @@ const recipe: Recipe = {
         { ingredient: "water", qty: 250, unit: "ml" },
       ],
     },
-    { kind: "add", title: "Add the salt", items: [{ ingredient: "salt", qty: 1, unit: "tsp" }] },
+    { kind: "add", title: "Add the salt", items: [{ ingredient: "salt", qty: 1, unit: "tsp" }], tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt." },
     { kind: "heat", title: "Turn on the flame", flame: "medium", equipment: "saucepan", durationSec: 60 },
     {
       kind: "wait",

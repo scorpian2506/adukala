@@ -22,7 +22,7 @@ const recipe: Recipe = {
     { id: "rice-flour", name: "Rice flour (roasted, or idiyappam flour)", native: "Arisi maavu", qty: 140, unit: "g", approx: "about 1 cup", group: "main", tag: "carb" },
     { id: "jaggery", name: "Jaggery (grated)", native: "Vellam", qty: 120, unit: "g", approx: "about 3/4 cup", group: "main", tag: "sugar" },
     { id: "water", name: "Water", qty: 330, unit: "ml", group: "liquid" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thengai thuruval", qty: 40, unit: "g", approx: "about 1/3 cup", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 20, unit: "g", approx: "about 1/4 cup, unsweetened", group: "main" },
     { id: "cardamom", name: "Cardamom powder", native: "Elakkai thool", qty: 0.25, unit: "tsp", group: "spice" },
     { id: "salt", name: "Salt", qty: 0.125, unit: "tsp", approx: "brings out the sweetness", tag: "salt" },
     { id: "ghee", name: "Ghee", native: "Nei", qty: 2, unit: "tsp", approx: "1 tsp for the dough, 1 tsp for greasing", tag: "oil" },
@@ -38,7 +38,7 @@ const recipe: Recipe = {
       items: [{ ingredient: "jaggery", qty: 120, unit: "g" }],
     },
     { kind: "measure", title: "Measure the water", equipment: "bowl", items: [{ ingredient: "water", qty: 330, unit: "ml" }] },
-    { kind: "measure", title: "Measure the grated coconut", equipment: "bowl", items: [{ ingredient: "coconut", qty: 40, unit: "g" }] },
+    { kind: "measure", title: "Measure the desiccated coconut", equipment: "bowl", items: [{ ingredient: "coconut", qty: 20, unit: "g" }] },
     {
       kind: "measure",
       title: "Measure cardamom and salt",
@@ -96,7 +96,7 @@ const recipe: Recipe = {
       title: "Add coconut, cardamom, salt, ghee",
       flame: "low",
       items: [
-        { ingredient: "coconut", qty: 40, unit: "g" },
+        { ingredient: "coconut", qty: 20, unit: "g" },
         { ingredient: "cardamom", qty: 0.25, unit: "tsp" },
         { ingredient: "salt", qty: 0.125, unit: "tsp" },
         { ingredient: "ghee", qty: 1, unit: "tsp" },

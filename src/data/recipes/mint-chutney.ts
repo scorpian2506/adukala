@@ -20,7 +20,7 @@ const recipe: Recipe = {
   ingredients: [
     { id: "mint", name: "Mint leaves", native: "Pudina", qty: 30, unit: "g", approx: "about 1 cup packed, from 1 large bunch", group: "main" },
     { id: "coriander-leaves", name: "Coriander leaves", native: "Kothamalli", qty: 15, unit: "g", approx: "about 1/2 cup packed", group: "main" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thengai thuruval", qty: 40, unit: "g", approx: "about 1/2 cup, packed loosely", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 20, unit: "g", approx: "about 6 tbsp, unsweetened", group: "main" },
     { id: "urad-dal", name: "Urad dal (split, skinned)", native: "Ulutham paruppu", qty: 1, unit: "tbsp", group: "main", tag: "protein" },
     { id: "dried-red-chilli", name: "Dried red chilli", native: "Vara milagai", qty: 2, unit: "pc", group: "main", tag: "chilli" },
     { id: "green-chilli", name: "Green chilli", native: "Pachai milagai", qty: 1, unit: "pc", approx: "about 3 g", group: "main", tag: "chilli" },
@@ -74,11 +74,12 @@ const recipe: Recipe = {
       detail: "Pull out any seeds or fibres from the tamarind.",
       equipment: "bowl",
       items: [
-        { ingredient: "coconut", qty: 40, unit: "g" },
+        { ingredient: "coconut", qty: 20, unit: "g" },
         { ingredient: "tamarind", qty: 3, unit: "g" },
         { ingredient: "salt", qty: 0.5, unit: "tsp" },
       ],
     },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 2 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     {
       kind: "measure",
       title: "Measure urad dal and red chillies",
@@ -169,7 +170,7 @@ const recipe: Recipe = {
       equipment: "mixer",
       durationSec: 45,
       items: [
-        { ingredient: "coconut", qty: 40, unit: "g" },
+        { ingredient: "coconut", qty: 20, unit: "g" },
         { ingredient: "tamarind", qty: 3, unit: "g" },
         { ingredient: "salt", qty: 0.5, unit: "tsp" },
         { ingredient: "water", qty: 80, unit: "ml" },

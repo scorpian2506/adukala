@@ -21,7 +21,7 @@ const recipe: Recipe = {
     { id: "black-chana", name: "Black chana (kala chana)", native: "Kadala", qty: 150, unit: "g", approx: "about 3/4 cup", group: "main", tag: "protein" },
     { id: "water", name: "Water", qty: 600, unit: "ml", group: "liquid" },
     { id: "salt", name: "Salt", qty: 1.25, unit: "tsp", approx: "about 7.5 g", tag: "salt" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thenga chirakiyathu", qty: 60, unit: "g", approx: "about 2/3 cup", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thenga chirakiyathu", qty: 30, unit: "g", approx: "about 1/2 cup", group: "main" },
     { id: "coriander-powder", name: "Coriander powder", native: "Malli podi", qty: 1.5, unit: "tbsp", group: "spice" },
     { id: "chilli-powder", name: "Kashmiri chilli powder", native: "Mulaku podi", qty: 1, unit: "tsp", group: "spice", tag: "chilli" },
     { id: "garam-masala", name: "Garam masala", native: "Garam masala", qty: 0.5, unit: "tsp", group: "spice" },
@@ -80,9 +80,9 @@ const recipe: Recipe = {
     },
     {
       kind: "measure",
-      title: "Measure the grated coconut",
+      title: "Measure the desiccated coconut",
       equipment: "bowl",
-      items: [{ ingredient: "coconut", qty: 60, unit: "g" }],
+      items: [{ ingredient: "coconut", qty: 30, unit: "g" }],
     },
     {
       kind: "measure",
@@ -158,14 +158,14 @@ const recipe: Recipe = {
     },
     { kind: "heat", title: "Heat the kadai on low", flame: "low", equipment: "kadai", durationSec: 60 },
     { kind: "add", title: "Add 1 tbsp coconut oil", flame: "low", items: [{ ingredient: "oil", qty: 1, unit: "tbsp" }] },
-    { kind: "add", title: "Add the grated coconut", flame: "low", items: [{ ingredient: "coconut", qty: 60, unit: "g" }] },
+    { kind: "add", title: "Add the desiccated coconut", flame: "low", items: [{ ingredient: "coconut", qty: 30, unit: "g" }] },
     {
       kind: "stir",
       title: "Roast the coconut until brown",
       detail: "Stir all the time on low so it browns evenly without burning.",
       flame: "low",
-      durationSec: 420,
-      cue: "Deep golden brown, like milky tea, and smells nutty.",
+      durationSec: 280,
+      cue: "Deep golden brown, like milky tea, and smells nutty; desiccated coconut browns fast.",
     },
     {
       kind: "add",
@@ -272,6 +272,7 @@ const recipe: Recipe = {
         { ingredient: "water", qty: 100, unit: "ml" },
         { ingredient: "salt", qty: 0.75, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     {
       kind: "stir",

@@ -127,6 +127,7 @@ const recipe: Recipe = {
         { ingredient: "turmeric", qty: 0.25, unit: "tsp" },
         { ingredient: "salt", qty: 0.75, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "stir", title: "Toss for 1 minute", detail: "Mix until every piece is coated yellow.", flame: "medium", durationSec: 60 },
     { kind: "add", title: "Sprinkle in 60 ml water", flame: "medium", items: [{ ingredient: "water", qty: 60, unit: "ml" }] },

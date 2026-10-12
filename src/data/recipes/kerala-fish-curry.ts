@@ -8,7 +8,7 @@ const recipe: Recipe = {
   cuisine: "kerala",
   course: "main",
   kidFriendly: false,
-  tags: ["meen curry", "meen mulakittathu", "kottayam fish curry", "kudampuli fish curry", "red fish curry", "nadan meen curry", "fish curry"],
+  tags: ["meen curry", "kudampuli fish curry", "nadan meen curry", "fish curry"],
   blurb: "Fish simmered in a deep red, sour gravy of Kashmiri chilli and kudampuli, finished with coconut oil.",
   servings: 4,
   prepMin: 25,
@@ -159,7 +159,7 @@ const recipe: Recipe = {
     },
     { kind: "stir", title: "Stir for 2 minutes", flame: "medium", durationSec: 120, cue: "The raw garlic smell is gone." },
     { kind: "flame", title: "Turn the flame to low", flame: "low" },
-    { kind: "add", title: "Spoon in the spice paste", flame: "low" },
+    { kind: "add", title: "Spoon in the spice paste", flame: "low", tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt." },
     {
       kind: "stir",
       title: "Stir the paste for 2 minutes",

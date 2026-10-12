@@ -166,6 +166,7 @@ const recipe: Recipe = {
     {
       kind: "add",
       title: "Add the spices and remaining salt",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       detail: "Sprinkle evenly over the potatoes and toss gently.",
       flame: "low",
       items: [

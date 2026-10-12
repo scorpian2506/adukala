@@ -65,6 +65,12 @@ export interface Step {
   detail?: string; // one short sentence, never a paragraph
   items?: StepItem[];
   durationSec?: number; // shows a timer
+  /**
+   * The timer can keep running while the cook moves on (resting dough, marinating).
+   * Prep timers always can; cook-phase timers block the next step unless this is set,
+   * because stove steps happen one after another in the same pan.
+   */
+  background?: boolean;
   flame?: Flame; // flame level during this step
   whistles?: number; // pressure steps
   equipment?: Equipment;

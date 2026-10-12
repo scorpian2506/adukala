@@ -25,7 +25,7 @@ const recipe: Recipe = {
     { id: "chilli-powder", name: "Red chilli powder", native: "Milagai thool", qty: 2, unit: "tsp", group: "spice", tag: "chilli" },
     { id: "coriander-powder", name: "Coriander powder", native: "Malli thool", qty: 1.5, unit: "tbsp", group: "spice" },
     { id: "salt", name: "Salt", qty: 1.5, unit: "tsp", approx: "about 9 g", tag: "salt" },
-    { id: "coconut", name: "Grated coconut", native: "Thengai thuruval", qty: 50, unit: "g", approx: "about 1/2 cup, fresh or frozen", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 25, unit: "g", approx: "about 1/3 cup, unsweetened", group: "main" },
     { id: "fennel", name: "Fennel seeds", native: "Sombu", qty: 1, unit: "tsp", group: "spice" },
     { id: "water", name: "Water", qty: 400, unit: "ml", group: "liquid" },
     { id: "oil", name: "Oil (gingelly or any)", native: "Nallennai", qty: 3, unit: "tbsp", group: "tempering", tag: "oil" },
@@ -74,6 +74,7 @@ const recipe: Recipe = {
     { kind: "chop", title: "Finely chop the onion", equipment: "knife", items: [{ ingredient: "onion", qty: 150, unit: "g" }] },
     { kind: "chop", title: "Finely chop the tomatoes", equipment: "knife", items: [{ ingredient: "tomato", qty: 150, unit: "g" }] },
     { kind: "chop", title: "Chop the coriander leaves", equipment: "knife", items: [{ ingredient: "coriander-leaves", qty: 5, unit: "g" }] },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 3 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     {
       kind: "grind",
       title: "Grind coconut and fennel to paste",
@@ -81,7 +82,7 @@ const recipe: Recipe = {
       equipment: "mixer",
       durationSec: 90,
       items: [
-        { ingredient: "coconut", qty: 50, unit: "g" },
+        { ingredient: "coconut", qty: 25, unit: "g" },
         { ingredient: "fennel", qty: 0.5, unit: "tsp" },
         { ingredient: "water", qty: 100, unit: "ml" },
       ],
@@ -162,6 +163,7 @@ const recipe: Recipe = {
         { ingredient: "coriander-powder", qty: 1.5, unit: "tbsp" },
         { ingredient: "turmeric", qty: 0.25, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "stir", title: "Stir for 1 minute", detail: "Keep it moving so the powders don't burn.", flame: "low", durationSec: 60, cue: "Smells toasty; the raw powder smell is gone." },
     {

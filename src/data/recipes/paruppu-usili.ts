@@ -168,6 +168,7 @@ const recipe: Recipe = {
       title: "Spoon in the ground dal",
       detail: "Spread it across the kadai in an even layer.",
       flame: "low",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     {
       kind: "stir",

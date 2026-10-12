@@ -233,6 +233,7 @@ const recipe: Recipe = {
         { ingredient: "salt", qty: 1, unit: "tsp" },
         { ingredient: "water-3", qty: 240, unit: "ml" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "add", title: "Tip in the crumbled potatoes", flame: "medium" },
     {

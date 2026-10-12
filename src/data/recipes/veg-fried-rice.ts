@@ -224,6 +224,7 @@ const recipe: Recipe = {
     {
       kind: "add",
       title: "Add the salt and pepper",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       flame: "high",
       items: [
         { ingredient: "salt", qty: 0.5, unit: "tsp" },

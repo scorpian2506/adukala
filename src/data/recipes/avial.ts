@@ -26,7 +26,7 @@ const recipe: Recipe = {
     { id: "turmeric", name: "Turmeric powder", native: "Manjal podi", qty: 0.25, unit: "tsp", group: "spice" },
     { id: "salt", name: "Salt", qty: 1, unit: "tsp", approx: "about 6 g", tag: "salt" },
     { id: "water", name: "Water", qty: 180, unit: "ml", group: "liquid" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thenga chirakiyathu", qty: 100, unit: "g", approx: "about 1 cup, loosely packed", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thenga chirakiyathu", qty: 50, unit: "g", approx: "about 3/4 cup, unsweetened", group: "main" },
     { id: "green-chilli", name: "Green chilli", native: "Pacha mulaku", qty: 3, unit: "pc", approx: "about 9 g", group: "main", tag: "chilli" },
     { id: "cumin", name: "Cumin seeds", native: "Jeerakam", qty: 0.5, unit: "tsp", group: "spice" },
     { id: "curd", name: "Thick sour curd (yogurt)", native: "Thairu", qty: 100, unit: "g", approx: "about 1/2 cup", group: "main" },
@@ -88,6 +88,7 @@ const recipe: Recipe = {
       equipment: "knife",
       items: [{ ingredient: "green-chilli", qty: 3, unit: "pc" }],
     },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 5 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     {
       kind: "grind",
       title: "Grind coconut, chillies, cumin coarsely",
@@ -95,7 +96,7 @@ const recipe: Recipe = {
       equipment: "mixer",
       durationSec: 20,
       items: [
-        { ingredient: "coconut", qty: 100, unit: "g" },
+        { ingredient: "coconut", qty: 50, unit: "g" },
         { ingredient: "green-chilli", qty: 3, unit: "pc" },
         { ingredient: "cumin", qty: 0.5, unit: "tsp" },
         { ingredient: "water", qty: 30, unit: "ml" },
@@ -150,6 +151,7 @@ const recipe: Recipe = {
         { ingredient: "salt", qty: 1, unit: "tsp" },
         { ingredient: "water", qty: 150, unit: "ml" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     {
       kind: "heat",

@@ -168,6 +168,7 @@ const recipe: Recipe = {
         { ingredient: "chilli-powder", qty: 0.5, unit: "tsp" },
         { ingredient: "coriander-powder", qty: 1, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     { kind: "stir", title: "Stir for 30 seconds", flame: "low", durationSec: 30, cue: "Smells toasty and spicy." },
     { kind: "add", title: "Pour in the mashed dal", detail: "Scrape it all out of the cooker into the kadai.", flame: "medium" },

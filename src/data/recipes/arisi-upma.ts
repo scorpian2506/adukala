@@ -32,7 +32,7 @@ const recipe: Recipe = {
     { id: "hing", name: "Asafoetida", native: "Perungayam", qty: 0.25, unit: "tsp", group: "tempering" },
     { id: "water", name: "Water", qty: 600, unit: "ml", approx: "about 2 1/2 cups", group: "liquid" },
     { id: "salt", name: "Salt", qty: 1.25, unit: "tsp", approx: "about 7.5 g", tag: "salt" },
-    { id: "coconut", name: "Grated coconut (fresh or frozen)", native: "Thengai thuruval", qty: 40, unit: "g", approx: "about 1/3 cup", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 20, unit: "g", approx: "about 1/4 cup, unsweetened", group: "main" },
   ],
   prep: [
     {
@@ -66,7 +66,8 @@ const recipe: Recipe = {
       ],
     },
     { kind: "measure", title: "Measure the coconut oil", detail: "If it has set solid, measure it by the spoonful; it melts in the pan.", equipment: "bowl", items: [{ ingredient: "oil", qty: 2, unit: "tbsp" }] },
-    { kind: "measure", title: "Measure the grated coconut", equipment: "bowl", items: [{ ingredient: "coconut", qty: 40, unit: "g" }] },
+    { kind: "measure", title: "Measure the desiccated coconut", equipment: "bowl", items: [{ ingredient: "coconut", qty: 20, unit: "g" }] },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 2 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     { kind: "measure", title: "Measure the salt", equipment: "bowl", items: [{ ingredient: "salt", qty: 1.25, unit: "tsp" }] },
   ],
   cook: [
@@ -114,8 +115,9 @@ const recipe: Recipe = {
         { ingredient: "water", qty: 600, unit: "ml" },
         { ingredient: "salt", qty: 1.25, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
-    { kind: "add", title: "Add the grated coconut", flame: "high", items: [{ ingredient: "coconut", qty: 40, unit: "g" }] },
+    { kind: "add", title: "Add the soaked coconut", flame: "high", items: [{ ingredient: "coconut", qty: 20, unit: "g" }] },
     {
       kind: "wait",
       title: "Bring to a rolling boil",

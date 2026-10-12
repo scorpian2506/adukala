@@ -25,7 +25,7 @@ const recipe: Recipe = {
     { id: "onion", name: "Onion", native: "Vengayam", qty: 100, unit: "g", approx: "about 1 medium onion", group: "main" },
     { id: "tomato", name: "Tomato", native: "Thakkali", qty: 100, unit: "g", approx: "about 1 medium tomato", group: "main" },
     { id: "ginger-garlic-paste", name: "Ginger garlic paste", native: "Inji poondu vizhudhu", qty: 1, unit: "tsp", group: "main" },
-    { id: "coconut", name: "Grated coconut", native: "Thengai thuruval", qty: 60, unit: "g", approx: "about 1/2 cup, fresh or frozen", group: "main", section: "For the kurma paste" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 30, unit: "g", approx: "about 1/3 cup, unsweetened", group: "main", section: "For the kurma paste" },
     { id: "roasted-gram", name: "Roasted gram (pottukadalai)", native: "Pottukadalai", qty: 1, unit: "tbsp", group: "main", section: "For the kurma paste" },
     { id: "cashews", name: "Cashew nuts", native: "Mundhiri", qty: 8, unit: "g", approx: "about 6 cashews", group: "main", section: "For the kurma paste" },
     { id: "green-chilli", name: "Green chilli", native: "Pachai milagai", qty: 2, unit: "pc", approx: "about 6 g", group: "main", section: "For the kurma paste", tag: "chilli" },
@@ -68,14 +68,15 @@ const recipe: Recipe = {
     { kind: "chop", title: "Thinly slice the onion", equipment: "knife", items: [{ ingredient: "onion", qty: 100, unit: "g" }] },
     { kind: "chop", title: "Finely chop the tomato", equipment: "knife", items: [{ ingredient: "tomato", qty: 100, unit: "g" }] },
     { kind: "chop", title: "Chop the coriander leaves", equipment: "knife", items: [{ ingredient: "coriander-leaves", qty: 5, unit: "g" }] },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 3 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     {
       kind: "grind",
       title: "Grind the kurma paste",
-      detail: "Put everything in the mixer jar and grind until very smooth; keep 1/2 tsp fennel aside.",
+      detail: "Put everything, including the soaked coconut and its water, in the mixer jar and grind until very smooth; keep 1/2 tsp fennel aside.",
       equipment: "mixer",
       durationSec: 90,
       items: [
-        { ingredient: "coconut", qty: 60, unit: "g" },
+        { ingredient: "coconut", qty: 30, unit: "g" },
         { ingredient: "roasted-gram", qty: 1, unit: "tbsp" },
         { ingredient: "cashews", qty: 8, unit: "g" },
         { ingredient: "green-chilli", qty: 2, unit: "pc" },
@@ -178,6 +179,7 @@ const recipe: Recipe = {
     {
       kind: "add",
       title: "Add the powdered spices",
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
       detail: "Turn the flame to low first so they don't burn.",
       flame: "low",
       items: [

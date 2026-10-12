@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SEED_RECIPES } from "@/lib/recipes";
 import { FACETS, searchRecipes, type Facet } from "@/lib/search";
 import { handoff, useSavedRecipes } from "@/lib/store";
@@ -14,14 +14,32 @@ export function SearchView() {
   const router = useRouter();
   const params = useSearchParams();
   const saved = useSavedRecipes();
-  const [q, setQ] = useState(() => params.get("q") ?? "");
-  const [facets, setFacets] = useState<Facet[]>(() => (params.get("f")?.split(",").filter((f) => FACETS.some((x) => x.id === f)) as Facet[]) ?? []);
+  // The URL is the single source of truth. Next keeps this page alive in the
+  // background, so local copies of the filters would go stale when a different
+  // cuisine tile links here.
+  const fParam = params.get("f") ?? "";
+  const facets = useMemo(() => fParam.split(",").filter((f): f is Facet => FACETS.some((x) => x.id === f)), [fParam]);
+  const urlQ = params.get("q") ?? "";
+  // The text box keeps its own state so typing stays smooth; it follows the URL when the URL changes from outside.
+  const [q, setQ] = useState(urlQ);
+  const typed = useRef(urlQ);
+  useEffect(() => {
+    if (urlQ !== typed.current) {
+      typed.current = urlQ;
+      setQ(urlQ);
+    }
+  }, [urlQ]);
   const [limit, setLimit] = useState(30);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLimit(30);
+  }, [fParam, urlQ]);
 
   const all = useMemo(() => [...saved, ...SEED_RECIPES], [saved]);
   const results = useMemo(() => searchRecipes(all, q, facets), [all, q, facets]);
 
   function sync(nextQ: string, nextF: Facet[]) {
+    typed.current = nextQ;
     const sp = new URLSearchParams();
     if (nextQ) sp.set("q", nextQ);
     if (nextF.length) sp.set("f", nextF.join(","));
@@ -30,8 +48,6 @@ export function SearchView() {
 
   function toggle(f: Facet) {
     const next = facets.includes(f) ? facets.filter((x) => x !== f) : [...facets, f];
-    setFacets(next);
-    setLimit(30);
     sync(q, next);
   }
 
@@ -45,7 +61,6 @@ export function SearchView() {
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
-              setLimit(30);
               sync(e.target.value, facets);
             }}
             autoFocus
@@ -109,7 +124,7 @@ export function SearchView() {
             <YouTube size={18} className="text-chilli" /> Search YouTube for “{q || "this"}”
           </button>
           {facets.length > 0 && (
-            <button onClick={() => (setFacets([]), sync(q, []))} className="press ml-3 text-[13px] text-ink-2 underline underline-offset-4">
+            <button onClick={() => sync(q, [])} className="press ml-3 text-[13px] text-ink-2 underline underline-offset-4">
               Clear filters
             </button>
           )}

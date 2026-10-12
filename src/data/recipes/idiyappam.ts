@@ -9,7 +9,7 @@ const recipe: Recipe = {
   course: "breakfast",
   kidFriendly: true,
   tags: ["noolappam", "nool puttu", "string hoppers", "idiappam", "sevai", "rice noodles"],
-  blurb: "Soft nests of steamed rice-flour strings with a sprinkle of fresh coconut.",
+  blurb: "Soft nests of steamed rice-flour strings with a sprinkle of coconut.",
   servings: 3,
   prepMin: 10,
   cookMin: 35,
@@ -23,7 +23,7 @@ const recipe: Recipe = {
     { id: "water", name: "Water (for the dough)", qty: 300, unit: "ml", group: "liquid" },
     { id: "salt", name: "Salt", qty: 0.5, unit: "tsp", approx: "about 3 g", tag: "salt" },
     { id: "oil", name: "Coconut oil", native: "Velichenna", qty: 2, unit: "tsp", group: "main", tag: "oil" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thenga chirakiyathu", qty: 50, unit: "g", approx: "about 1/2 cup", group: "garnish" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thenga chirakiyathu", qty: 25, unit: "g", approx: "about 1/3 cup", group: "garnish" },
     { id: "water-2", name: "Water (for steaming)", qty: 500, unit: "ml", group: "liquid" },
   ],
   prep: [
@@ -46,10 +46,10 @@ const recipe: Recipe = {
     },
     {
       kind: "measure",
-      title: "Measure the grated coconut",
+      title: "Measure the desiccated coconut",
       detail: "Half goes under the strings and half on top.",
       equipment: "bowl",
-      items: [{ ingredient: "coconut", qty: 50, unit: "g" }],
+      items: [{ ingredient: "coconut", qty: 25, unit: "g" }],
     },
     {
       kind: "note",
@@ -65,7 +65,7 @@ const recipe: Recipe = {
     {
       kind: "add",
       title: "Sprinkle coconut into each cup",
-      items: [{ ingredient: "coconut", qty: 25, unit: "g" }],
+      items: [{ ingredient: "coconut", qty: 12.5, unit: "g" }],
     },
   ],
   cook: [
@@ -130,7 +130,7 @@ const recipe: Recipe = {
     {
       kind: "add",
       title: "Top with the remaining coconut",
-      items: [{ ingredient: "coconut", qty: 25, unit: "g" }],
+      items: [{ ingredient: "coconut", qty: 12.5, unit: "g" }],
     },
     {
       kind: "add",

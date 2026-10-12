@@ -19,7 +19,7 @@ const recipe: Recipe = {
   equipment: ["kadai", "mixer", "knife", "bowl"],
   ingredients: [
     { id: "cabbage", name: "Cabbage", native: "Cabbage", qty: 300, unit: "g", approx: "about a quarter of a medium cabbage", group: "main" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thenga chirakiyathu", qty: 50, unit: "g", approx: "about 1/2 cup", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thenga chirakiyathu", qty: 25, unit: "g", approx: "about 1/3 cup, unsweetened", group: "main" },
     { id: "green-chilli", name: "Green chilli", native: "Pacha mulaku", qty: 2, unit: "pc", approx: "about 6 g", group: "main", tag: "chilli" },
     { id: "shallots", name: "Shallots (small onions)", native: "Kunjulli", qty: 20, unit: "g", approx: "about 3 shallots", group: "main" },
     { id: "garlic", name: "Garlic", native: "Veluthulli", qty: 3, unit: "g", approx: "about 1 clove", group: "main" },
@@ -63,6 +63,7 @@ const recipe: Recipe = {
       equipment: "knife",
       items: [{ ingredient: "green-chilli", qty: 2, unit: "pc" }],
     },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 3 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     {
       kind: "grind",
       title: "Crush the coconut mix coarsely",
@@ -70,7 +71,7 @@ const recipe: Recipe = {
       equipment: "mixer",
       durationSec: 15,
       items: [
-        { ingredient: "coconut", qty: 50, unit: "g" },
+        { ingredient: "coconut", qty: 25, unit: "g" },
         { ingredient: "green-chilli", qty: 2, unit: "pc" },
         { ingredient: "shallots", qty: 20, unit: "g" },
         { ingredient: "garlic", qty: 3, unit: "g" },
@@ -149,6 +150,7 @@ const recipe: Recipe = {
       title: "Add the salt",
       flame: "medium",
       items: [{ ingredient: "salt", qty: 0.75, unit: "tsp" }],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     {
       kind: "stir",

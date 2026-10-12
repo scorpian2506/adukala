@@ -32,7 +32,7 @@ const recipe: Recipe = {
     { id: "curry-leaves", name: "Curry leaves", native: "Karuveppilai", qty: 10, unit: "pc", approx: "about 1 sprig", group: "tempering" },
     { id: "hing", name: "Asafoetida", native: "Perungayam", qty: 0.125, unit: "tsp", group: "tempering" },
     { id: "onion", name: "Onion", native: "Vengayam", qty: 80, unit: "g", approx: "about 1 small onion", group: "main" },
-    { id: "coconut", name: "Grated coconut (fresh or frozen)", native: "Thengai thuruval", qty: 20, unit: "g", approx: "about 3 tbsp", group: "garnish" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thengai thuruval", qty: 10, unit: "g", approx: "about 2 tbsp, unsweetened", group: "garnish" },
     { id: "lemon-juice", name: "Lemon juice", qty: 2, unit: "tsp", approx: "from about 1/2 small lemon", group: "garnish" },
     { id: "coriander-leaves", name: "Coriander leaves", native: "Kothamalli", qty: 5, unit: "g", approx: "about 2 tbsp chopped", group: "garnish" },
   ],
@@ -56,6 +56,7 @@ const recipe: Recipe = {
         { ingredient: "salt", qty: 0.75, unit: "tsp" },
         { ingredient: "turmeric", qty: 0.25, unit: "tsp" },
       ],
+      tip: "Optional: add 1 sachet (6 g) Maggi Masala-ae-Magic here for extra flavour; then use ¼ tsp less salt.",
     },
     {
       kind: "stir",
@@ -103,10 +104,11 @@ const recipe: Recipe = {
       title: "Measure coconut and lemon juice",
       equipment: "bowl",
       items: [
-        { ingredient: "coconut", qty: 20, unit: "g" },
+        { ingredient: "coconut", qty: 10, unit: "g" },
         { ingredient: "lemon-juice", qty: 2, unit: "tsp" },
       ],
     },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 1 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
   ],
   cook: [
     { kind: "heat", title: "Heat the kadai", detail: "A kadai is a deep, round-bottomed pan.", flame: "medium", durationSec: 60, equipment: "kadai" },
@@ -169,7 +171,7 @@ const recipe: Recipe = {
       kind: "add",
       title: "Add coconut, lemon and coriander",
       items: [
-        { ingredient: "coconut", qty: 20, unit: "g" },
+        { ingredient: "coconut", qty: 10, unit: "g" },
         { ingredient: "lemon-juice", qty: 2, unit: "tsp" },
         { ingredient: "coriander-leaves", qty: 5, unit: "g" },
       ],

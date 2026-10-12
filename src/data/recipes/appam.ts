@@ -21,7 +21,7 @@ const recipe: Recipe = {
   ingredients: [
     { id: "raw-rice", name: "Raw rice (ponni or sona masoori)", native: "Pachari", qty: 200, unit: "g", approx: "about 1 cup", group: "main", tag: "carb" },
     { id: "cooked-rice", name: "Cooked rice", native: "Choru", qty: 50, unit: "g", approx: "about 1/4 cup", group: "main", tag: "carb" },
-    { id: "coconut", name: "Fresh grated coconut", native: "Thenga chirakiyathu", qty: 80, unit: "g", approx: "about 1 cup, loosely packed", group: "main" },
+    { id: "coconut", name: "Desiccated coconut", native: "Thenga chirakiyathu", qty: 40, unit: "g", approx: "about 3/4 cup, unsweetened", group: "main" },
     { id: "sugar", name: "Sugar", native: "Panchasara", qty: 4, unit: "tsp", group: "main", tag: "sugar" },
     { id: "yeast", name: "Instant or active dry yeast", qty: 0.5, unit: "tsp", group: "main" },
     { id: "water", name: "Water", qty: 310, unit: "ml", group: "liquid" },
@@ -50,10 +50,11 @@ const recipe: Recipe = {
       title: "Measure coconut and cooked rice",
       equipment: "bowl",
       items: [
-        { ingredient: "coconut", qty: 80, unit: "g" },
+        { ingredient: "coconut", qty: 40, unit: "g" },
         { ingredient: "cooked-rice", qty: 50, unit: "g" },
       ],
     },
+    { kind: "soak", title: "Soak the desiccated coconut", detail: "Soak it in 4 tbsp warm water for 10 minutes so it softens.", durationSec: 600 },
     {
       kind: "add",
       title: "Mix yeast, sugar and warm water",
@@ -88,7 +89,7 @@ const recipe: Recipe = {
       durationSec: 180,
       items: [
         { ingredient: "raw-rice", qty: 200, unit: "g" },
-        { ingredient: "coconut", qty: 80, unit: "g" },
+        { ingredient: "coconut", qty: 40, unit: "g" },
         { ingredient: "cooked-rice", qty: 50, unit: "g" },
         { ingredient: "sugar", qty: 3, unit: "tsp" },
         { ingredient: "water", qty: 220, unit: "ml" },
