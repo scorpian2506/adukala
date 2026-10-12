@@ -1,0 +1,234 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #f4ede1;
+  --paper-2: #ebe2d2;
+  --paper-3: #e2d6c2;
+  --card: #fbf7f0;
+  --ink: #1c1813;
+  --ink-2: #4f463c;
+  --ink-3: #8a7f72;
+  --line: rgba(28, 24, 19, 0.12);
+  --line-2: rgba(28, 24, 19, 0.22);
+
+  --turmeric: #e3a22a;
+  --turmeric-soft: #f3d696;
+  --chilli: #c4402a;
+  --chilli-soft: #eeb4a3;
+  --leaf: #355236;
+  --leaf-soft: #b9cbb1;
+  --tamarind: #6a3a25;
+  --tamarind-soft: #d6b29d;
+  --coconut: #cbbd9f;
+  --coconut-soft: #efe7d6;
+
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-paper-3: var(--paper-3);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-turmeric: var(--turmeric);
+  --color-turmeric-soft: var(--turmeric-soft);
+  --color-chilli: var(--chilli);
+  --color-chilli-soft: var(--chilli-soft);
+  --color-leaf: var(--leaf);
+  --color-leaf-soft: var(--leaf-soft);
+  --color-tamarind: var(--tamarind);
+  --color-tamarind-soft: var(--tamarind-soft);
+  --color-coconut: var(--coconut);
+  --color-coconut-soft: var(--coconut-soft);
+  --font-display: var(--font-serif);
+  --font-sans: var(--font-grotesk);
+  --font-mono: var(--font-mono-face);
+}
+
+html {
+  background: var(--paper);
+  -webkit-tap-highlight-color: transparent;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  overscroll-behavior-y: none;
+}
+
+/* Paper grain, painted once on the root. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.35;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.11  0 0 0 0 0.09  0 0 0 0 0.07  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.font-display {
+  font-family: var(--font-serif), ui-serif, Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.eyebrow {
+  font-family: var(--font-mono-face), ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.press {
+  transition: transform 120ms ease, background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+.press:active {
+  transform: scale(0.97);
+}
+
+/* Motion primitives for the step illustrations */
+@keyframes stir {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes steam {
+  0% { transform: translateY(6px) scaleX(1); opacity: 0; }
+  30% { opacity: 0.9; }
+  100% { transform: translateY(-26px) scaleX(1.4); opacity: 0; }
+}
+@keyframes flicker {
+  0%, 100% { transform: scaleY(1) scaleX(1); }
+  25% { transform: scaleY(1.12) scaleX(0.94); }
+  50% { transform: scaleY(0.92) scaleX(1.04); }
+  75% { transform: scaleY(1.06) scaleX(0.97); }
+}
+@keyframes chop {
+  0%, 100% { transform: translateY(-14px) rotate(-6deg); }
+  45%, 55% { transform: translateY(0) rotate(0deg); }
+}
+@keyframes drop {
+  0% { transform: translateY(-10px); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(34px); opacity: 0; }
+}
+@keyframes tip {
+  0%, 100% { transform: rotate(0deg); }
+  40%, 70% { transform: rotate(-38deg); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-1.5px) rotate(-1deg); }
+  40% { transform: translateX(1.5px) rotate(1deg); }
+  60% { transform: translateX(-1px) rotate(-0.5deg); }
+  80% { transform: translateX(1px) rotate(0.5deg); }
+}
+@keyframes jiggle {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  25% { transform: rotate(-12deg) translateY(-2px); }
+  75% { transform: rotate(12deg) translateY(-2px); }
+}
+@keyframes lidDown {
+  0% { transform: translateY(-34px); }
+  55%, 100% { transform: translateY(0); }
+}
+@keyframes lidUp {
+  0%, 30% { transform: translateY(0) rotate(0); }
+  80%, 100% { transform: translateY(-30px) rotate(-8deg); }
+}
+@keyframes bubble {
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateY(-18px) scale(1); opacity: 0; }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+@keyframes marquee {
+  to { transform: translateX(-50%); }
+}
+@keyframes dots {
+  0%, 20% { opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { opacity: 0.2; }
+}
+
+.animate-rise {
+  animation: rise 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.animate-fade {
+  animation: fade 400ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* App height: the full viewport on phones, the device frame on desktop. */
+:root {
+  --frame-h: min(860px, calc(100dvh - 64px));
+  --app-h: 100dvh;
+}
+.app-h {
+  height: var(--app-h);
+}
+.app-min-h {
+  min-height: var(--app-h);
+}
+@media (min-width: 1024px) {
+  :root {
+    --app-h: var(--frame-h);
+  }
+  /* Makes position:fixed children anchor to the frame, not the window. */
+  .app-frame {
+    transform: translateZ(0);
+  }
+}
+.safe-b {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+.safe-t {
+  padding-top: max(12px, env(safe-area-inset-top));
+}
