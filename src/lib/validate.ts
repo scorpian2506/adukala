@@ -8,6 +8,8 @@ const FLAME_ONLY_KINDS = new Set(["heat", "flame", "stir", "wait", "pressure", "
 const TRANSFER_TITLE = /^(pour|transfer|return|tip|spoon)\b/i;
 const RELEASE_DETAIL = "Wait until all the pressure is gone; don't force the whistle.";
 const BANNED = [/to taste/i, /pinch/i];
+// Imported recipes may use "pinch" as a verb ("pinch off a ball of dough"); only the vague measure is banned.
+const BANNED_IMPORTED = [/to taste/i, /\bpinch of\b|\ba pinch\b/i];
 
 export type Issue = { level: "error" | "warn"; msg: string };
 
@@ -169,7 +171,7 @@ export function validateRecipe(r: Recipe, opts: { seed?: boolean } = {}): Issue[
   // banned phrases anywhere
   const strings: [string, string][] = [];
   walkStrings(r, "", strings);
-  for (const [p, s] of strings) for (const re of BANNED) if (re.test(s)) err(`banned phrase ${re} at ${p}: "${s}"`);
+  for (const [p, s] of strings) for (const re of opts.seed ? BANNED : BANNED_IMPORTED) if (re.test(s)) err(`banned phrase ${re} at ${p}: "${s}"`);
 
   return issues;
 }

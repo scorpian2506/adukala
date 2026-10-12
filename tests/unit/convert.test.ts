@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { cleanName, convertRecipe, ingredientKey, parseIngredientEntry } from "@/lib/convert";
+import { cleanName, conversionQuality, convertRecipe, ingredientKey, parseIngredientEntry } from "@/lib/convert";
 import { recipeFromDescription, recipeFromJsonLd, recipeFromWprm } from "@/lib/scrape";
 import { buildScreens } from "@/lib/recipes";
 import { validateRecipe } from "@/lib/validate";
@@ -184,4 +184,95 @@ describe("matching method words to ingredients", () => {
 it("lists each estimated ingredient once in the warning", () => {
   const r = convertRecipe(recipeFromWprm(fixture("wprm.html").replace("few curry leaves", "few curry leaves</span></li><li class=\"wprm-recipe-ingredient\"><span class=\"wprm-recipe-ingredient-name\">few curry leaves"))!);
   expect(r.warnings?.[0].match(/curry leaves/g)).toHaveLength(1);
+});
+
+describe("bilingual ingredient lists (NAME | नाम AMOUNT)", () => {
+  const src = recipeFromDescription(fixture("description-bilingual.txt"))!;
+  const r = convertRecipe(src, { title: "Moong Dal Khichdi | one pot" });
+  const ing = (n: string) => r.ingredients.find((i) => i.name.toLowerCase() === n);
+
+  it("reads the amount after the name and drops the translation", () => {
+    expect(src.ingredients[0]).toEqual({ name: "1 cup basmati rice", notes: undefined, group: "Soaking" });
+    expect(ing("basmati rice")).toMatchObject({ qty: 1, unit: "cup" });
+    expect(ing("onion")).toMatchObject({ unit: "g", qty: 210 });
+    expect(ing("french beans")).toMatchObject({ unit: "g" });
+    expect(ing("bay leaf")).toMatchObject({ qty: 2, unit: "pc" });
+    expect(r.ingredients.every((i) => /^[A-Z][a-z]/.test(i.name))).toBe(true);
+  });
+  it("uses the short headings as groups", () => {
+    expect(ing("ghee")?.section).toBe("Tempering & final cooking");
+  });
+  it("turns 'do not…' into advice, not an action", () => {
+    expect(r.cook.find((s) => /^Do not open/.test(s.title))?.kind).toBe("note");
+  });
+  it("passes the quality rules and the confidence check", () => {
+    expect(errors(r)).toEqual([]);
+  });
+});
+
+describe("real-world method quirks", () => {
+  const conv = (ingredients: string[], steps: string[]) =>
+    convertRecipe({ source: "description", ingredients: ingredients.map((name) => ({ name })), steps }, { title: "Test" });
+
+  it("'prepared tomato puree' doesn't use up the raw tomato", () => {
+    const r = conv(["2 tomatoes", "1 tsp salt", "1 tbsp oil"], ["Heat oil in a kadai.", "Add in prepared tomato puree and cook well.", "Add tomato, salt and mix well."]);
+    const step = r.cook.find((s) => s.items?.some((i) => i.ingredient === "tomatoes"));
+    expect(step?.detail).toMatch(/^Add tomato, salt/);
+  });
+  it("never writes a vague 'Add the rest'", () => {
+    const r = conv(["1 tsp oil", "1 tsp salt"], ["Heat oil in a pan and add salt.", "Remove the lid after 3 minutes and sprinkle love on top."]);
+    expect(r.cook.some((s) => /the rest/i.test(s.title))).toBe(false);
+  });
+  it("rejoins a sentence split at '&'", () => {
+    const r = conv(["1 cup rice", "2 cups water", "1 tsp salt"], ["Add rice, water and salt to a pot. & mix gently, then cook for 15 minutes."]);
+    expect(r.cook.some((s) => /^& /.test(s.detail ?? ""))).toBe(false);
+  });
+  it("caps step text at 140 characters", () => {
+    const long = `Add the rice and ${"stir it slowly and patiently ".repeat(10)}until done.`;
+    const r = conv(["1 cup rice", "1 tsp salt"], [long, "Add salt."]);
+    expect(Math.max(...r.cook.map((s) => (s.detail ?? "").length))).toBeLessThanOrEqual(140);
+  });
+});
+
+describe("confidence check", () => {
+  it("rejects a recipe with no method", () => {
+    const src = { source: "description" as const, ingredients: [{ name: "1 cup rice" }, { name: "1 tsp salt" }, { name: "2 cups water" }], steps: [] };
+    expect(conversionQuality(src, convertRecipe(src)).ok).toBe(false);
+  });
+  it("rejects ingredients that aren't in English", () => {
+    const src = { source: "description" as const, ingredients: [{ name: "1 कप चावल" }, { name: "2 कप पानी" }, { name: "1 चम्मच नमक" }], steps: ["चावल धोएं", "पकाएं"] };
+    expect(conversionQuality(src, convertRecipe(src)).reason).toMatch(/English/);
+  });
+  it("accepts a normal written recipe", () => {
+    const src = recipeFromWprm(fixture("wprm.html"))!;
+    expect(conversionQuality(src, convertRecipe(src)).ok).toBe(true);
+  });
+});
+
+describe("pinch, and steps after serving", () => {
+  const p = (name: string) => parseIngredientEntry({ name }, 3, 0);
+  it("reads 'a pinch' wherever it appears", () => {
+    expect(p("Salt a pinch")).toMatchObject({ name: "Salt", qty: 0.125, unit: "tsp" });
+    expect(p("A pinch of Baking Soda")).toMatchObject({ name: "Baking Soda", qty: 0.125, unit: "tsp" });
+    expect(p("salt a large pinch")).toMatchObject({ name: "Salt", unit: "tsp" });
+  });
+  it("leaves the verb 'pinch' alone", () => {
+    const r = convertRecipe({ source: "description", ingredients: [{ name: "2 cups wheat flour" }, { name: "1 tsp oil" }, { name: "1 tsp salt" }], steps: ["Add wheat flour, oil and salt and knead for 5 minutes.", "Pinch a ball sized dough and roll it."] }, { title: "Roti" });
+    expect(r.cook.some((s) => /^Pinch a ball/.test(s.title))).toBe(true);
+    expect(errors(r)).toEqual([]);
+  });
+  it("keeps 'serve' as the last step", () => {
+    const r = convertRecipe({ source: "description", ingredients: [{ name: "1 cup rice" }, { name: "2 cups water" }, { name: "1 tsp ghee" }], steps: ["Boil rice in water for 15 minutes on medium flame.", "Serve hot.", "You can also add ghee on top."] }, { title: "Rice" });
+    expect(r.cook.at(-1)?.kind).toBe("serve");
+    expect(errors(r)).toEqual([]);
+  });
+});
+
+it("turns the flame off before serving even after switching pans", () => {
+  const r = convertRecipe(
+    { source: "description", ingredients: [{ name: "1 tbsp oil" }, { name: "1 cup batter" }, { name: "1 tsp ghee" }], steps: ["Heat a tawa on medium flame and add oil.", "Pour batter and cook for 2 minutes.", "In a small pan add ghee.", "Serve hot."] },
+    { title: "Dosa" },
+  );
+  expect(errors(r)).toEqual([]);
+  expect(r.cook.at(-2)).toMatchObject({ kind: "flame", flame: "off" });
 });

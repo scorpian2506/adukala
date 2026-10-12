@@ -163,6 +163,43 @@ export function recipeFromWprm(html: string): ScrapedRecipe | null {
   };
 }
 
+const AMOUNT = String.raw`(?:\d+(?:[./]\d+)?(?:\s*-\s*\d+(?:[./]\d+)?)?|½|¼|¾|⅓|⅔|⅛|a|an|one|two)`;
+const UNIT_WORD = String.raw`(?:tsp|tbsp|tbs|teaspoons?|tablespoons?|cups?|g|gm|gms|grams?|kg|kgs|ml|l|ltrs?|litres?|liters?|nos?\.?|pcs?|pieces?|inch(?:es)?|cloves?|sprigs?|bunch(?:es)?|pinch|handful|large|medium|small)`;
+const TRAILING_AMOUNT = new RegExp(String.raw`^(.*?)[\s:–-]+(${AMOUNT}\s*${UNIT_WORD}?\.?(?:\s+${UNIT_WORD})?)\s*(\(.*\))?\s*$`, "i");
+const HAS_QTY = new RegExp(String.raw`(^|\s)${AMOUNT.replace("|a|an|one|two", "")}\s*${UNIT_WORD}\b`, "i");
+const NON_LATIN = /[\u0900-\u0DFF]/; // Devanagari, Bengali, Tamil, Telugu, Kannada, Malayalam…
+
+/**
+ * Turn "SURTI KOLUM | सुरती कोलम 1 CUP" or "Toor dal - 1/2 cup (washed)" into a normal
+ * "amount unit name, notes" line. Leaves lines that already start with an amount alone.
+ */
+export function normaliseIngredientLine(line: string): ScrapedIngredient {
+  let s = line.replace(/^[-•*▪️✓·]\s*/, "").trim();
+  let name = s;
+  if (s.includes("|")) {
+    const [en, rest = ""] = s.split("|");
+    // "| हिंदी नाम 1 CUP" → drop the translated name, keep the amount
+    const amount = rest
+      .trim()
+      .replace(/^[^\x00-\x7F]+(\s+[^\x00-\x7F]+)*\s*/, "")
+      .trim();
+    name = en.trim();
+    s = `${name} ${amount}`.trim();
+  }
+  const quiet = (t: string) => (t === t.toUpperCase() && /[A-Z]/.test(t) ? t.toLowerCase() : t);
+  if (!/^\s*(\d|½|¼|¾|⅓|⅔|⅛)/.test(s)) {
+    const m = s.match(TRAILING_AMOUNT);
+    if (m && /\d|½|¼|¾/.test(m[2])) {
+      const notes = m[3]?.replace(/[()]/g, "").trim();
+      return { name: quiet(`${m[2]} ${m[1].replace(/[|:–-]\s*$/, "").trim()}`), notes: notes ? quiet(notes) : undefined };
+    }
+    // "WATER | पानी AS REQUIRED"
+    const vague = s.match(/^(.*?)\s+(as required|as needed|to taste|a pinch|a little|few)\s*(\(.*\))?$/i);
+    if (vague) return { name: quiet(`${vague[1]} ${vague[2]}`) };
+  }
+  return { name: quiet(s) };
+}
+
 const QTY_START = /^\s*(?:[-•*▪️✓·]\s*)?(\d|½|¼|¾|⅓|⅔|⅛|a\s|an\s|one\s|two\s|few\s|pinch|handful|salt|water|oil|ghee)/i;
 const METHOD_HEADER = /^(method|instructions?|directions?|preparation( method)?|procedure|process|steps|how to (make|cook|prepare)( it)?|recipe( method)?)\s*[:\-–]?\s*$/i;
 const GROUP_HEADER = /^(for\b.{0,40}|garnish(ing)?|to garnish|for garnish|tempering|tadka|seasoning|marinade|marination|to serve|masala paste|gravy|dough|batter)\s*:?\s*$/i;
@@ -186,8 +223,17 @@ export function recipeFromDescription(description: string): ScrapedRecipe | null
   const inline = lines[start].split(/ingredients?\s*[:\-–]/i)[1]?.trim();
   if (inline) inline.split(/,|;/).forEach((p) => p.trim() && ingredients.push({ name: p.trim() }));
 
-  for (const line of lines.slice(start + 1)) {
+  const all = lines.slice(start + 1);
+  for (let li = 0; li < all.length; li++) {
+    const line = all[li];
     if (!line) continue;
+    // A second block ("Cooking sambar Ingredients:") starts a new group.
+    const block = line.match(/^(.*?)\s*ingredients?\s*[:\-–]?\s*$/i);
+    if (block) {
+      mode = "ing";
+      group = block[1]?.trim() || undefined;
+      continue;
+    }
     if (FOOTER.test(line)) {
       if (mode === "steps" && steps.length) break;
       if (ingredients.length && mode === "ing" && /^[*=_~\-]{4,}/.test(line)) break;
@@ -198,6 +244,13 @@ export function recipeFromDescription(description: string): ScrapedRecipe | null
       continue;
     }
     if (mode === "ing") {
+      const next = all.slice(li + 1).find(Boolean) ?? "";
+      const bilingual = line.includes("|") || NON_LATIN.test(line);
+      // Short heading with no amount, followed by "NAME | नाम 1 CUP" lines ("Soaking", "Tempering & final cooking").
+      if (!/\d/.test(line) && !bilingual && line.split(/\s+/).length <= 5 && (next.includes("|") || HAS_QTY.test(` ${next}`)) && !HAS_QTY.test(` ${line}`) && !/^(salt|water|oil|ghee)\b/i.test(line) && (next.includes("|") || GROUP_HEADER.test(line))) {
+        group = line.replace(/:$/, "").trim();
+        continue;
+      }
       if (GROUP_HEADER.test(line) && !/\d/.test(line)) {
         group = line.replace(/:$/, "").trim();
         continue;
@@ -206,8 +259,8 @@ export function recipeFromDescription(description: string): ScrapedRecipe | null
         group = line.replace(/:$/, "").trim();
         continue;
       }
-      if (QTY_START.test(line) || line.length < 45) {
-        ingredients.push({ name: line.replace(/^[-•*▪️✓·]\s*/, ""), group });
+      if (QTY_START.test(line) || line.length < 45 || bilingual || (HAS_QTY.test(` ${line}`) && line.length < 90)) {
+        ingredients.push({ ...normaliseIngredientLine(line), group });
         continue;
       }
       mode = "steps";
@@ -236,7 +289,24 @@ export function scrapedToText(r: ScrapedRecipe): string {
 /** URLs in a video description worth trying as the written recipe. */
 const SKIP_HOSTS = /(youtube|youtu\.be|instagram|facebook|fb\.me|twitter|x\.com|amazon|amzn|flipkart|whatsapp|t\.me|telegram|pinterest|spotify|hooksounds|bit\.ly|linktr\.ee|threads\.net|play\.google|apple\.com|meesho|myntra|wa\.me)/i;
 
+/** Only public web pages: anyone can write anything in a video description. */
+export function isSafePublicUrl(raw: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+  if (u.port && u.port !== "80" && u.port !== "443") return false;
+  if (u.username || u.password) return false;
+  const h = u.hostname.toLowerCase();
+  if (!h.includes(".") || h.endsWith(".local") || h.endsWith(".internal") || h === "localhost" || h.endsWith(".localhost")) return false;
+  if (/^\[.*\]$/.test(h) || /^[\d.]+$/.test(h) || /^0x/i.test(h)) return false; // IP literals
+  return true;
+}
+
 export function recipeLinks(description: string): string[] {
   const urls = description.match(/https?:\/\/[^\s)"'<>]+/g) ?? [];
-  return [...new Set(urls.map((u) => u.replace(/[.,]+$/, "")))].filter((u) => !SKIP_HOSTS.test(u)).slice(0, 3);
+  return [...new Set(urls.map((u) => u.replace(/[.,]+$/, "")))].filter((u) => !SKIP_HOSTS.test(u) && isSafePublicUrl(u)).slice(0, 3);
 }

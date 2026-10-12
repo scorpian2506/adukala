@@ -67,3 +67,14 @@ describe("helpers", () => {
     expect(t).toContain("Method:\n1. firstly");
   });
 });
+
+describe("link safety", () => {
+  it("only follows public web links from descriptions", async () => {
+    const { isSafePublicUrl } = await import("@/lib/scrape");
+    expect(isSafePublicUrl("https://hebbarskitchen.com/x/")).toBe(true);
+    for (const bad of ["http://localhost:3000/x", "http://127.0.0.1/x", "http://169.254.169.254/latest/meta-data", "http://[::1]/x", "https://site.com:8443/x", "ftp://site.com/x", "http://intranet/x", "http://printer.local/x", "https://user:pw@site.com/x", "http://0x7f000001/"]) {
+      expect(isSafePublicUrl(bad), bad).toBe(false);
+    }
+    expect(recipeLinks("recipe http://169.254.169.254/latest and https://blog.example.com/dal")).toEqual(["https://blog.example.com/dal"]);
+  });
+});

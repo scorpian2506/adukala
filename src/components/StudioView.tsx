@@ -7,7 +7,7 @@ import { aiHeaders, aiReady, handoff, saveProgress, saveRecipe, useSavedRecipes,
 import { useHydrated } from "@/lib/useRecipe";
 import { totalMinutes } from "@/lib/format";
 import { SEED_RECIPES, applyOfflineTweaks, findInLibrary, parseOfflineTweak, scaleRecipe, type CustomisationId } from "@/lib/recipes";
-import { convertRecipe, cleanName } from "@/lib/convert";
+import { convertRecipe, cleanName, conversionQuality } from "@/lib/convert";
 import { PROVIDERS } from "@/lib/providers";
 import { isYouTubeUrl, TRUSTED_CHANNELS, type SearchResult } from "@/lib/yt-parse";
 import type { ScrapedRecipe } from "@/lib/scrape";
@@ -143,6 +143,17 @@ export function StudioView() {
     setBusy("convert");
     try {
       let r = convertRecipe(v.recipe, { title: v.title, channel: v.channel, url: v.url });
+      const quality = conversionQuality(v.recipe, r);
+      if (!quality.ok) {
+        // Don't save a recipe nobody could follow; offer better sources instead.
+        const note: Msg = {
+          role: "assistant",
+          content: `I found a written recipe, but ${quality.reason}, so I can't turn it into exact steps without AI. Here are other videos for this dish — or connect a free AI in Settings.`,
+        };
+        setBusy(null);
+        void searchDish([...list, note], cleanName(v.title), v.id);
+        return;
+      }
       if (people) r = scaleRecipe(r, people);
       if (tweaks.length) r = { ...applyOfflineTweaks(r, tweaks), name: r.name };
       finish(list, r, r.warnings?.join(" "));

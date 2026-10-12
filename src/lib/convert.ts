@@ -150,6 +150,9 @@ interface ParsedIng extends Ingredient {
 export function normaliseLine(line: string) {
   const n = "(\\d|½|¼|¾|⅓|⅔|⅛)";
   return line
+    // "Salt a pinch", "A pinch of baking soda", "a large pinch of hing" → "1 pinch …"
+    .replace(/^(.+?)\s+a\s+(?:large\s+|small\s+)?pinch$/i, "1 pinch $1")
+    .replace(/^a\s+(?:large\s+|small\s+)?pinch\s+(?:of\s+)?/i, "1 pinch ")
     .replace(new RegExp(`${n}\\s*(gms?|grms?|grams?)\\b\\.?`, "gi"), "$1 g")
     .replace(new RegExp(`${n}\\s*kgs\\b`, "gi"), "$1 kg")
     .replace(new RegExp(`${n}\\s*(ltrs?|litres?|liters?)\\b`, "gi"), "$1 l")
@@ -274,6 +277,11 @@ function sentencesOf(steps: string[]): string[] {
         .replace(/^(firstly|first|now|then|further|furthermore|additionally|also|next|finally|lastly|meanwhile|after that|once done)\s*,?\s*/i, "")
         .replace(/\s+/g, " ");
       if (/^(keep|set) (it )?aside\.?$/i.test(t)) continue;
+      // "& mix gently…" is the tail of the previous sentence.
+      if (/^[&,+]/.test(t) && out.length) {
+        out[out.length - 1] = `${out[out.length - 1].replace(/\.$/, "")} ${t}`;
+        continue;
+      }
       // A one-word fragment ("crisp.") is a typo split in the source; glue it back.
       if (t.split(/\s+/).length < 2 && out.length) out[out.length - 1] = `${out[out.length - 1].replace(/\.$/, "")} ${t}`;
       else if (t.length > 3) out.push(t);
@@ -351,11 +359,12 @@ function listNames(items: StepItem[], byId: Map<string, ParsedIng>, budget = 5) 
 function detailOf(s: string) {
   // Our steps always show the measured amount, so drop the source's vague wording.
   const cleaned = s
-    .replace(/\b(a\s+)?pinch(\s+of)?\b/gi, "⅛ tsp")
+    .replace(/\s*[●•▪️]\s*/g, " ")
+    .replace(/\b(a\s+)?pinch\s+of\b|\ba\s+pinch\b/gi, "⅛ tsp")
     .replace(/\s*\b(to taste|as required|as needed)\b/gi, "")
     .replace(/\s+([,.])/g, "$1");
   const t = titleCase(cleaned);
-  return t.length > 160 ? `${t.slice(0, 157).replace(/\s+\S*$/, "")}…` : t;
+  return t.length > 140 ? `${t.slice(0, 137).replace(/[\s,;:&]+\S*$/, "")}…` : t;
 }
 
 export function convertRecipe(src: ScrapedRecipe, meta: ConvertMeta = {}): Recipe {
@@ -381,6 +390,12 @@ export function convertRecipe(src: ScrapedRecipe, meta: ConvertMeta = {}): Recip
 
   function itemsIn(sentence: string): StepItem[] {
     let text = ` ${canonical(singular(sentence.toLowerCase().replace(/[^a-z0-9½¼¾\s]/g, " ")))} `;
+    // "prepared tomato puree", "cooked dal" were made earlier: they mustn't use up a raw ingredient,
+    // unless the recipe lists exactly that ("1 cup cooked rice").
+    text = text.replace(/ (prepared|cooked|boiled|fried|roasted|ground|blanched) ([a-z]+(?: (?:puree|paste|mixture|masala|stuffing))?)(?= )/g, (m, _adj, rest) =>
+      byKeyLength.some((i) => !used.has(i.id) && (i.key === `${_adj} ${rest}` || i.key === m.trim())) ? m : " ",
+    );
+    text = text.replace(/ [a-z]+ (puree|stuffing|mixture)(?= )/g, (m) => (byKeyLength.some((i) => !used.has(i.id) && m.includes(` ${i.key} `.trim())) ? m : " "));
     const found: ParsedIng[] = [];
     for (const ing of byKeyLength) {
       if (used.has(ing.id) || !ing.key) continue;
@@ -418,10 +433,23 @@ export function convertRecipe(src: ScrapedRecipe, meta: ConvertMeta = {}): Recip
   let pressureDone = false;
 
   const push = (s: Step) => cook.push(s);
+  // Is any burner still on, judging by the steps written so far?
+  const flameIsOn = () => {
+    for (let i = cook.length - 1; i >= 0; i--) if (cook[i].flame) return cook[i].flame !== "off";
+    return false;
+  };
 
   for (const raw of sentencesOf(src.steps)) {
     // "For palak paneer heat ghee…" — the leading dish name isn't an ingredient.
-    let sentence = raw.replace(/^for (the )?[a-z\s]{3,40}?,?\s+(?=(heat|add|in|take|put|now|pour|place|boil|cook|mix)\b)/i, "");
+    let sentence = raw
+      .replace(/^for (the )?[a-z\s]{3,40}?,?\s+(?=(heat|add|in|take|put|now|pour|place|boil|cook|mix)\b)/i, "")
+      .replace(/^to (make|prepare|cook) [^,]{3,40},\s*/i, "")
+      .replace(/^[●•▪️]\s*/, "");
+    // "Do not soak the poha" is advice, not an action.
+    if (/\b(do not|don't|dont|never|avoid)\b/i.test(sentence)) {
+      push({ kind: "note", title: shorten(titleCase(sentence.replace(/[.,;:]+$/, ""))), detail: detailOf(sentence) });
+      continue;
+    }
     const l = sentence.toLowerCase();
     const f = flameIn(sentence);
     const v = VESSEL_WORDS.find(([re]) => re.test(l))?.[1];
@@ -495,12 +523,18 @@ export function convertRecipe(src: ScrapedRecipe, meta: ConvertMeta = {}): Recip
       continue;
     }
     if (/^(cover|close)|\bcover (and|with)|close the lid/.test(s)) {
-      push({ kind: "lid_close", title: "Cover with a lid", equipment: vessel, flame });
+      push({
+        kind: "lid_close",
+        title: "Cover with a lid",
+        equipment: vessel,
+        flame,
+        detail: vessel === "pressure_cooker" ? "Put the lid on loosely, without the whistle — this isn't pressure cooking." : undefined,
+      });
       push({ kind: "wait", title: duration ? `Cook covered for ${Math.round(duration / 60) || 1} min` : "Let it cook covered", durationSec: duration ?? defaultDuration(s, "wait"), flame, equipment: vessel, cue, detail: detailOf(sentence) });
       continue;
     }
     if (/(serve|enjoy)\b/.test(s) && !items.length) {
-      if (flame !== "off") push({ kind: "flame", title: "Turn off the flame", flame: "off", equipment: vessel });
+      if (flameIsOn()) push({ kind: "flame", title: "Turn off the flame", flame: "off", equipment: vessel });
       flame = "off";
       push({ kind: "serve", title: "Serve hot", detail: detailOf(sentence) });
       continue;
@@ -514,10 +548,15 @@ export function convertRecipe(src: ScrapedRecipe, meta: ConvertMeta = {}): Recip
     if (isAdd) {
       const what = items.length
         ? listNames(items, byId)
-        : (s.match(/\b(?:add|put|pour|transfer|tip|garnish with)\s+(?:in\s+)?(?:the\s+)?(?:some\s+|prepared\s+)?([a-z\s]+?)(?:\s+and|\s+to|\s+into|\s+in|,|\.|$)/)?.[1]?.trim() || "the rest");
+        : (s.match(/\b(?:add|put|pour|transfer|tip|sprinkle|top with|garnish with)\s+(?:in\s+)?(?:the\s+)?(?:some\s+|prepared\s+)?([a-z\s]+?)(?:\s+and|\s+to|\s+into|\s+in|,|\.|$)/)?.[1]?.trim() || "the rest");
       // Something made earlier in the recipe ("the masala paste", "the cooked dal") goes in the title too.
       const made = items.length ? s.match(/\b((?:cooked|prepared|ground|boiled|roasted|fried)\s+[a-z]+|[a-z]+\s+(?:paste|puree|purée|mixture))\b/)?.[1] : undefined;
       const label = made && !items.some((i) => made.includes(byId.get(i.ingredient)!.key)) ? `${made.replace(/^prepared\s+/, "")} and ${listNames(items, byId, 3)}` : what;
+      // Couldn't tell what goes in: show the instruction as a note rather than a vague "Add the rest".
+      if (label === "the rest") {
+        push({ kind: "note", title: shorten(titleCase(sentence.replace(/[.,;:]+$/, ""))), detail: detailOf(sentence) });
+        continue;
+      }
       push({
         kind: "add",
         title: shorten(/garnish/.test(s) ? `Garnish with ${label}` : `Add ${label.startsWith("the ") ? label : `the ${label}`}`),
@@ -575,8 +614,15 @@ export function convertRecipe(src: ScrapedRecipe, meta: ConvertMeta = {}): Recip
   // Water never mentioned is dropped rather than guessed into a step.
   const dropped = new Set(ings.filter((i) => !used.has(i.id)).map((i) => i.id));
 
+  // Text after "serve" in the source (tips, variations) shouldn't come after serving.
+  const serveIdx = cook.findIndex((s) => s.kind === "serve");
+  if (serveIdx >= 0 && serveIdx < cook.length - 1) {
+    const [serve] = cook.splice(serveIdx, 1);
+    if (flameIsOn()) cook.push({ kind: "flame", title: "Turn off the flame", flame: "off", equipment: vessel });
+    cook.push(serve);
+  }
   if (!cook.some((s) => s.kind === "serve")) {
-    if (cook.length && cook[cook.length - 1].flame !== "off" && flame !== "off") cook.push({ kind: "flame", title: "Turn off the flame", flame: "off", equipment: vessel });
+    if (flameIsOn()) cook.push({ kind: "flame", title: "Turn off the flame", flame: "off", equipment: vessel });
     cook.push({ kind: "serve", title: "Serve hot" });
   }
 
@@ -699,6 +745,19 @@ function hueFor(name: string, ingredients: string[], course: Recipe["course"]): 
   if (/coconut/.test(main) && course !== "dal") return "coconut";
   if (/tomato/.test(main) && course === "main") return "chilli";
   return "turmeric";
+}
+
+/**
+ * Is a rule-based conversion good enough to cook from? If most ingredients were
+ * never placed in a step, or there was no method at all, it's guesswork.
+ */
+export function conversionQuality(src: ScrapedRecipe, r: Recipe): { ok: boolean; reason?: string } {
+  if (src.steps.length < 2) return { ok: false, reason: "the written recipe has no method steps" };
+  const nonLatin = src.ingredients.filter((i) => !/[a-z]{2}/i.test(i.name)).length;
+  if (nonLatin > src.ingredients.length / 2) return { ok: false, reason: "the ingredients aren't written in English" };
+  const leftover = r.cook.find((s) => /didn't say exactly when/.test(s.detail ?? ""))?.items?.length ?? 0;
+  if (leftover > r.ingredients.length / 2) return { ok: false, reason: "the method doesn't say when to add most ingredients" };
+  return { ok: true };
 }
 
 export function cleanName(s: string) {

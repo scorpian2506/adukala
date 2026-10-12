@@ -51,9 +51,10 @@ From datacenter IPs such as Vercel's, YouTube blocks its watch page and player A
 ## Tests
 
 ```bash
-npm test            # 107 unit tests (Vitest): quantities, scaling, scraping, converter, AI output cleanup
+npm test            # 124 unit tests (Vitest): quantities, scaling, scraping, converter, AI output cleanup
 npm run test:e2e    # 25 browser tests (Playwright, iPhone viewport, production build, stubbed APIs)
 npm run test:live   # opt-in: real YouTube calls (E2E_BASE_URL=https://… to hit a deployment)
+npm run test:batch  # real dishes → real videos → converter → quality rules (BASE=https://…)
 npm run validate    # quality rules for the recipe library
 npm run check       # types + lint + unit tests + validator
 ```

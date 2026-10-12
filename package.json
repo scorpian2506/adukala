@@ -12,7 +12,8 @@
     "test:e2e": "playwright test --project=mobile",
     "test:live": "playwright test --project=live",
     "validate": "tsx scripts/validate-recipes.ts",
-    "check": "tsc --noEmit && eslint && vitest run && tsx scripts/validate-recipes.ts"
+    "check": "tsc --noEmit && eslint && vitest run && tsx scripts/validate-recipes.ts",
+    "test:batch": "tsx scripts/batch-convert.mts"
   },
   "dependencies": {
     "next": "16.4.0",

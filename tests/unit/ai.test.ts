@@ -72,3 +72,26 @@ describe("normalizeRecipe", () => {
     expect(r.cook[3].whistles).toBeUndefined();
   });
 });
+
+describe("structured output on free providers", () => {
+  it("falls back to JSON mode when the model rejects strict schemas", async () => {
+    const OpenAI = (await import("openai")).default;
+    const { structured } = await import("@/lib/ai");
+    const calls: unknown[] = [];
+    const client = {
+      chat: {
+        completions: {
+          create: async (body: { response_format: { type: string } }) => {
+            calls.push(body.response_format.type);
+            if (body.response_format.type === "json_schema") throw new OpenAI.APIError(400, { message: "json_schema not supported" }, "bad", new Headers());
+            return { choices: [{ message: { content: 'Here you go:\n```json\n{"ok":true}\n```' } }] };
+          },
+        },
+      },
+    };
+    const ai = { ...clientFrom(req({ "x-ai-provider": "groq", "x-ai-key": "k" })), client: client as never };
+    const out = await structured<{ ok: boolean }>({ ai, instructions: "x", input: "y", schema: { type: "object" }, name: "t" });
+    expect(out).toEqual({ ok: true });
+    expect(calls).toEqual(["json_schema", "json_object"]);
+  });
+});
