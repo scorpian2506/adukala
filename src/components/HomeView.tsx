@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { SEED_RECIPES, flattenSteps, stepNumberAt } from "@/lib/recipes";
-import { handoff, useProgressMap, useSavedRecipes, useSettings } from "@/lib/store";
+import { aiReady, handoff, useProgressMap, useSavedRecipes, useSettings } from "@/lib/store";
 import type { Recipe } from "@/lib/types";
 import { Wordmark } from "./Wordmark";
 import { RecipeCard, HUE_BG } from "./RecipeCard";
@@ -72,9 +72,7 @@ export function HomeView() {
           aria-label="Settings"
         >
           <Gear />
-          <span
-            className={`absolute right-1.5 top-1.5 h-2 w-2 rounded-full ring-2 ring-paper ${settings.openaiKey ? "bg-leaf" : "bg-turmeric"}`}
-          />
+          {aiReady(settings) && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-leaf ring-2 ring-paper" aria-label="AI connected" />}
         </Link>
       </header>
 

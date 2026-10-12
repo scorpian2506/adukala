@@ -11,7 +11,7 @@ import {
   stepNumberAt,
   type CustomisationId,
 } from "@/lib/recipes";
-import { aiHeaders, deleteRecipe, getProgress, saveProgress, saveRecipe, useSettings } from "@/lib/store";
+import { aiHeaders, aiReady, deleteRecipe, getProgress, saveProgress, saveRecipe, useSettings } from "@/lib/store";
 import { useRecipe } from "@/lib/useRecipe";
 import { EQUIPMENT_LABEL, KIND_LABEL, REGION_LABEL, formatQty, totalMinutes } from "@/lib/format";
 import type { Ingredient, Recipe } from "@/lib/types";
@@ -50,12 +50,18 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const progress = getProgress(recipe.id);
   const isSaved = recipe.source?.kind !== "seed" || !!recipe.variant?.length;
 
-  const groups = recipe.ingredients.reduce<Record<string, Ingredient[]>>((acc, ing) => {
-    const g = ing.group ?? "main";
-    (acc[g] ??= []).push(ing);
-    return acc;
-  }, {});
-  const groupOrder = (["main", "liquid", "spice", "tempering", "garnish"] as const).filter((g) => groups[g]);
+  // Imported recipes keep the creator's own sections ("For the masala paste").
+  const bySection = recipe.ingredients.some((i) => i.section);
+  const groupList: { label: string; items: Ingredient[] }[] = [];
+  for (const ing of recipe.ingredients) {
+    const label = bySection ? (ing.section ?? "Other") : GROUP_LABEL[ing.group ?? "main"];
+    const g = groupList.find((x) => x.label === label) ?? groupList[groupList.push({ label, items: [] }) - 1];
+    g.items.push(ing);
+  }
+  if (!bySection) {
+    const order = Object.values(GROUP_LABEL);
+    groupList.sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
+  }
 
   const needsAI = mods.some((m) => !OFFLINE_CUSTOMISATIONS.includes(m));
 
@@ -69,13 +75,11 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
     setError(null);
     if (!needsAI) {
       const v = applyOfflineTweaks(recipe, mods);
-      v.name = recipe.name;
-      v.source = { kind: "ai" };
       saveRecipe(v);
       router.push(`/recipe/${v.id}`);
       return;
     }
-    if (!settings.openaiKey) {
+    if (!aiReady(settings)) {
       setError("key");
       return;
     }
@@ -148,6 +152,18 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
         )}
       </div>
 
+      {(recipe.method === "rules" || recipe.warnings?.length) && (
+        <div className="mx-5 mt-6 rounded-2xl border border-turmeric/60 bg-turmeric-soft/30 p-4 text-[13px] leading-snug text-ink-2">
+          <p className="eyebrow mb-1.5 text-ink">{recipe.method === "rules" ? "Converted without AI" : "Worth a check"}</p>
+          {recipe.method === "rules" && <p>Amounts come straight from the creator&rsquo;s written recipe. Steps were split by rules, so glance through them once.</p>}
+          {recipe.warnings?.map((w) => (
+            <p key={w} className="mt-1.5">
+              {w}
+            </p>
+          ))}
+        </div>
+      )}
+
       <dl className="mx-5 mt-6 grid grid-cols-3 divide-x divide-line rounded-2xl border border-line">
         <Stat label="Total" value={`${totalMinutes(recipe)} min`} />
         <Stat label="Level" value={<Dots n={recipe.level} label="Level" />} />
@@ -205,11 +221,11 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
             </p>
             {error === "key" ? (
               <p className="mt-3 text-[13px] text-chilli">
-                {`This one needs AI. `}
+                {`High protein, low carb, Jain, vegan and diabetic need AI to rewrite the recipe. `}
                 <Link href="/settings" className="underline underline-offset-2">
-                  Add your OpenAI key
+                  Connect a free AI
                 </Link>
-                {` first.`}
+                {` (Gemini or Groq), or pick only Low oil, Less spicy or Kid friendly.`}
               </p>
             ) : error ? (
               <p className="mt-3 text-[13px] text-chilli">{error}</p>
@@ -242,14 +258,17 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
           <h2 className="font-display text-[28px] leading-none">Ingredients</h2>
           <span className="eyebrow text-ink-3 tnum">For {servings}</span>
         </div>
-        {groupOrder.map((g) => (
-          <div key={g} className="mt-5">
-            <p className="eyebrow text-ink-3">{GROUP_LABEL[g]}</p>
+        {groupList.map((g) => (
+          <div key={g.label} className="mt-5">
+            <p className="eyebrow text-ink-3">{g.label}</p>
             <ul className="mt-1">
-              {groups[g].map((ing) => (
+              {g.items.map((ing) => (
                 <li key={ing.id} className="flex items-baseline justify-between gap-4 border-b border-line py-3">
                   <div className="min-w-0">
-                    <p className="text-[15px] text-ink">{ing.name}</p>
+                    <p className="text-[15px] text-ink">
+                      {ing.name}
+                      {ing.estimated && <span className="ml-1.5 rounded bg-turmeric-soft px-1.5 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-ink-2">est.</span>}
+                    </p>
                     {(ing.native || ing.approx) && (
                       <p className="mt-0.5 text-[12px] text-ink-3">{[ing.native, ing.approx].filter(Boolean).join(" · ")}</p>
                     )}

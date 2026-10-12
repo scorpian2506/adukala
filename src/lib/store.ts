@@ -2,9 +2,10 @@
 
 import { useSyncExternalStore } from "react";
 import type { Recipe } from "./types";
+import { PROVIDERS, isProviderId, type ProviderId } from "./providers";
 
-// Everything personal lives in the browser: the user's OpenAI key, their
-// generated recipes, and where they are in a cook.
+// Everything personal lives in the browser: AI keys (optional), saved
+// recipes, and where they are in a cook.
 
 const KEYS = {
   settings: "adukala.settings.v1",
@@ -13,15 +14,26 @@ const KEYS = {
 } as const;
 
 export interface Settings {
-  openaiKey: string;
-  model: string;
+  /** "none" = the free, built-in converter. No AI calls at all. */
+  provider: ProviderId | "none";
+  keys: Partial<Record<ProviderId, string>>;
+  models: Partial<Record<ProviderId, string>>;
   voice: boolean; // read steps aloud
   listen: boolean; // "next" by voice
 }
 
-export const DEFAULT_MODEL = "gpt-5.5";
+const DEFAULT_SETTINGS: Settings = { provider: "none", keys: {}, models: {}, voice: false, listen: false };
 
-const DEFAULT_SETTINGS: Settings = { openaiKey: "", model: DEFAULT_MODEL, voice: false, listen: false };
+/** True when an AI provider is chosen and has what it needs. */
+export function aiReady(s: Settings) {
+  if (s.provider === "none") return false;
+  const p = PROVIDERS[s.provider];
+  return !p.needsKey || !!s.keys[s.provider]?.trim();
+}
+
+export function modelFor(s: Settings, id: ProviderId) {
+  return s.models[id]?.trim() || PROVIDERS[id].defaultModel;
+}
 
 export interface Progress {
   recipeId: string;
@@ -77,12 +89,38 @@ function subscribe(cb: () => void) {
 const EMPTY_RECIPES: Recipe[] = [];
 const EMPTY_PROGRESS: Record<string, Progress> = {};
 
+type LegacySettings = Partial<Settings> & { openaiKey?: string; model?: string };
+
 export function getSettings(): Settings {
-  return { ...DEFAULT_SETTINGS, ...read<Partial<Settings>>(KEYS.settings, DEFAULT_SETTINGS) };
+  const raw = read<LegacySettings>(KEYS.settings, DEFAULT_SETTINGS);
+  const s: Settings = {
+    provider: raw.provider === "none" || isProviderId(raw.provider) ? raw.provider : "none",
+    keys: { ...(raw.keys ?? {}) },
+    models: { ...(raw.models ?? {}) },
+    voice: !!raw.voice,
+    listen: !!raw.listen,
+  };
+  // v1 stored a single OpenAI key.
+  if (raw.openaiKey && !s.keys.openai) {
+    s.keys.openai = raw.openaiKey;
+    if (!raw.provider) s.provider = "openai";
+    if (raw.model) s.models.openai = raw.model;
+  }
+  return s;
 }
 
 export function saveSettings(patch: Partial<Settings>) {
   write(KEYS.settings, { ...getSettings(), ...patch });
+}
+
+export function saveKey(id: ProviderId, key: string) {
+  const s = getSettings();
+  saveSettings({ keys: { ...s.keys, [id]: key.trim() } });
+}
+
+export function saveModel(id: ProviderId, model: string) {
+  const s = getSettings();
+  saveSettings({ models: { ...s.models, [id]: model } });
 }
 
 let settingsSnap: Settings = DEFAULT_SETTINGS;
@@ -147,8 +185,12 @@ export function useProgressMap(): Record<string, Progress> {
 export function aiHeaders(): HeadersInit {
   const s = getSettings();
   const h: Record<string, string> = { "content-type": "application/json" };
-  if (s.openaiKey) h["x-openai-key"] = s.openaiKey;
-  if (s.model) h["x-openai-model"] = s.model;
+  if (s.provider !== "none") {
+    h["x-ai-provider"] = s.provider;
+    h["x-ai-model"] = modelFor(s, s.provider);
+    const key = s.keys[s.provider];
+    if (key) h["x-ai-key"] = key;
+  }
   return h;
 }
 

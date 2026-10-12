@@ -1,8 +1,7 @@
 import "server-only";
 import OpenAI from "openai";
 import type { Recipe, Step, StepItem, Ingredient, Unit } from "./types";
-
-export const DEFAULT_MODEL = "gpt-5.5";
+import { PROVIDERS, isProviderId, type Provider } from "./providers";
 
 export class AIError extends Error {
   constructor(
@@ -13,27 +12,42 @@ export class AIError extends Error {
   }
 }
 
-/** The user's key arrives per request from their browser; an env key is the fallback for hosted demos. */
-export function clientFrom(req: Request) {
-  const apiKey = req.headers.get("x-openai-key")?.trim() || process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new AIError("Add your OpenAI key in Settings to use AI features.", 401);
-  const model = req.headers.get("x-openai-model")?.trim() || process.env.OPENAI_MODEL || DEFAULT_MODEL;
-  return { client: new OpenAI({ apiKey, timeout: 280_000, maxRetries: 1 }), model };
+export interface AIContext {
+  client: OpenAI;
+  model: string;
+  provider: Provider;
+  key: string;
+}
+
+/** The user's provider, key and model arrive per request from their browser. Base URLs come only from our presets. */
+export function clientFrom(req: Request): AIContext {
+  const id = req.headers.get("x-ai-provider") ?? "";
+  if (!isProviderId(id)) throw new AIError("Pick an AI provider in Settings, or use the free converter.", 401);
+  const provider = PROVIDERS[id];
+  if (provider.localOnly && process.env.NODE_ENV === "production" && !process.env.ALLOW_LOCAL_AI) {
+    throw new AIError("Ollama only works when you run Adukala on your own computer.", 400);
+  }
+  const key = req.headers.get("x-ai-key")?.trim() || (id === "openai" ? process.env.OPENAI_API_KEY : "") || "";
+  if (provider.needsKey && !key) throw new AIError(`Add your ${provider.name} key in Settings.`, 401);
+  const model = req.headers.get("x-ai-model")?.trim().slice(0, 100) || provider.defaultModel;
+  const client = new OpenAI({ apiKey: key || "ollama", baseURL: provider.baseURL, timeout: 280_000, maxRetries: 1 });
+  return { client, model, provider, key };
 }
 
 export function errorResponse(e: unknown) {
   if (e instanceof AIError) return Response.json({ error: e.message }, { status: e.status });
   if (e instanceof OpenAI.APIError) {
     const msg =
-      e.status === 401
-        ? "OpenAI rejected the key. Check it in Settings."
+      e.status === 401 || e.status === 403
+        ? "The AI provider rejected the key. Check it in Settings."
         : e.status === 404
-          ? "That model isn't available on your OpenAI account. Pick another in Settings."
+          ? "That model isn't available for your key. Pick another model in Settings."
           : e.status === 429
-            ? "OpenAI rate limit or quota reached. Try again shortly, or check your billing."
+            ? "Rate limit reached on your AI plan. Wait a minute and try again."
             : e.message;
-    return Response.json({ error: msg }, { status: e.status ?? 500 });
+    return Response.json({ error: msg }, { status: e.status && e.status < 600 ? e.status : 500 });
   }
+  if (e instanceof SyntaxError) return Response.json({ error: "The AI replied with something we couldn't read. Try again, or try another model." }, { status: 502 });
   console.error(e);
   return Response.json({ error: "Something went wrong. Please try again." }, { status: 500 });
 }
@@ -233,10 +247,25 @@ export function normalizeRecipe(raw: Record<string, unknown>, extra: Partial<Rec
   };
 }
 
-/** Structured-output call, optionally with web search. Falls back to no search if the model rejects the tool. */
+/** Pull a JSON object out of a reply that may be wrapped in prose or ``` fences. */
+export function parseJsonReply<T>(text: string): T {
+  const t = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+  try {
+    return JSON.parse(t) as T;
+  } catch {
+    const start = t.indexOf("{");
+    const end = t.lastIndexOf("}");
+    if (start >= 0 && end > start) return JSON.parse(t.slice(start, end + 1)) as T;
+    throw new SyntaxError("No JSON in reply");
+  }
+}
+
+/**
+ * Structured-output call. OpenAI uses the Responses API (with optional web search);
+ * free providers use Chat Completions with json_schema, falling back to JSON mode.
+ */
 export async function structured<T>(opts: {
-  client: OpenAI;
-  model: string;
+  ai: AIContext;
   instructions: string;
   input: string;
   schema: object;
@@ -244,9 +273,12 @@ export async function structured<T>(opts: {
   search?: boolean;
   effort?: "low" | "medium" | "high";
 }): Promise<T> {
+  const { client, model, provider } = opts.ai;
+  if (provider.api === "chat") return chatStructured<T>(opts);
+
   const run = async (search: boolean, reasoning: boolean) => {
-    const res = await opts.client.responses.create({
-      model: opts.model,
+    const res = await client.responses.create({
+      model,
       instructions: opts.instructions,
       input: opts.input,
       ...(reasoning ? { reasoning: { effort: opts.effort ?? "low" } } : {}),
@@ -255,7 +287,7 @@ export async function structured<T>(opts: {
     });
     const text = res.output_text;
     if (!text) throw new AIError("The model returned nothing. Try again.");
-    return JSON.parse(text) as T;
+    return parseJsonReply<T>(text);
   };
   let search = !!opts.search;
   let reasoning = true;
@@ -271,4 +303,70 @@ export async function structured<T>(opts: {
       else throw e;
     }
   }
+}
+
+async function chatStructured<T>(opts: { ai: AIContext; instructions: string; input: string; schema: object; name: string }): Promise<T> {
+  const { client, model } = opts.ai;
+  const messages = [
+    { role: "system" as const, content: opts.instructions },
+    { role: "user" as const, content: opts.input },
+  ];
+  try {
+    const res = await client.chat.completions.create({
+      model,
+      messages,
+      response_format: { type: "json_schema", json_schema: { name: opts.name, schema: opts.schema as Record<string, unknown>, strict: true } },
+    });
+    return parseJsonReply<T>(res.choices[0]?.message?.content ?? "");
+  } catch (e) {
+    // Many open models don't support strict schemas: describe the schema and use JSON mode.
+    if (!(e instanceof OpenAI.APIError) || (e.status !== 400 && e.status !== 422)) throw e;
+  }
+  const res = await client.chat.completions.create({
+    model,
+    messages: [
+      { role: "system", content: `${opts.instructions}\n\nReply with ONE JSON object only, no prose, matching this JSON Schema exactly (use null for unknown optional fields):\n${JSON.stringify(opts.schema)}` },
+      { role: "user", content: opts.input },
+    ],
+    response_format: { type: "json_object" },
+  });
+  return parseJsonReply<T>(res.choices[0]?.message?.content ?? "");
+}
+
+/** Tiny request to check a key/model works. */
+export async function ping(ai: AIContext) {
+  if (ai.provider.api === "responses") {
+    await ai.client.models.retrieve(ai.model);
+    return;
+  }
+  await ai.client.chat.completions.create({ model: ai.model, messages: [{ role: "user", content: "Reply with OK." }], max_tokens: 5 });
+}
+
+/**
+ * Gemini can watch a public YouTube video. When a video has no written recipe and
+ * no captions, ask it to write down what the cook shows and says.
+ */
+export async function geminiWatch(ai: AIContext, videoUrl: string): Promise<string | null> {
+  if (ai.provider.id !== "gemini") return null;
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(ai.model)}:generateContent`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-goog-api-key": ai.key },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { file_data: { file_uri: videoUrl } },
+            {
+              text: "Watch this cooking video. Write down every ingredient with the exact quantity shown on screen or said (say 'not stated' if not), then every step in order with times, flame levels, pressure cooker whistles and visual cues. Plain text, no commentary.",
+            },
+          ],
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(120_000),
+  });
+  if (!res.ok) return null;
+  const j = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  const text = j.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+  return text.trim() ? text.slice(0, 16000) : null;
 }

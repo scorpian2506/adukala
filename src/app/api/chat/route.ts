@@ -38,7 +38,7 @@ When ready=true, the message should be one line like "Perfect — writing your m
 
 export async function POST(req: Request) {
   try {
-    const { client, model } = clientFrom(req);
+    const ai = clientFrom(req);
     const { messages, video } = (await req.json()) as { messages: Turn[]; video?: VideoSource | null };
     const transcript = messages.map((m) => `${m.role === "user" ? "USER" : "ASSISTANT"}: ${m.content}`).join("\n");
     const asked = messages.filter((m) => m.role === "assistant").length;
@@ -50,8 +50,7 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join("\n\n");
     const out = await structured<{ message: string; options: string[]; multiSelect: boolean; ready: boolean; dish: string }>({
-      client,
-      model,
+      ai,
       instructions: INSTRUCTIONS,
       input,
       schema: SCHEMA,

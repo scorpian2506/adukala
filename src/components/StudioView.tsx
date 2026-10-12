@@ -3,16 +3,21 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { aiHeaders, handoff, saveProgress, saveRecipe, useSettings } from "@/lib/store";
+import { aiHeaders, aiReady, handoff, saveProgress, saveRecipe, useSavedRecipes, useSettings } from "@/lib/store";
 import { useHydrated } from "@/lib/useRecipe";
 import { totalMinutes } from "@/lib/format";
+import { SEED_RECIPES, applyOfflineTweaks, findInLibrary, parseOfflineTweak, scaleRecipe, type CustomisationId } from "@/lib/recipes";
+import { convertRecipe, cleanName } from "@/lib/convert";
+import { PROVIDERS } from "@/lib/providers";
+import { isYouTubeUrl, TRUSTED_CHANNELS, type SearchResult } from "@/lib/yt-parse";
+import type { ScrapedRecipe } from "@/lib/scrape";
 import type { Recipe } from "@/lib/types";
 import { ArrowLeft, ArrowRight, Check, LinkIcon, Send, YouTube } from "./Icons";
 import { CookingLoader } from "./CookingLoader";
 import { DishArt } from "./DishArt";
 import { HUE_BG } from "./RecipeCard";
 
-interface Video {
+export interface Video {
   id: string;
   url: string;
   title: string;
@@ -21,30 +26,42 @@ interface Video {
   lengthSec?: number;
   description: string;
   transcript?: string;
-  linkedRecipe?: { url: string; text: string };
+  recipe?: ScrapedRecipe;
+  pageText?: { url: string; text: string };
 }
+
+/** Local (no-AI) questions the studio asks with tap chips. */
+type LocalAction = "servings" | "tweaks";
 
 type Msg =
   | { role: "user"; content: string }
-  | { role: "assistant"; content: string; options?: string[]; multiSelect?: boolean }
+  | { role: "assistant"; content: string; options?: string[]; multiSelect?: boolean; action?: LocalAction }
   | { role: "video"; video: Video }
+  | { role: "results"; results: SearchResult[] }
+  | { role: "library"; recipe: Recipe }
   | { role: "recipe"; recipe: Recipe; notes?: string }
   | { role: "error"; content: string; needsKey?: boolean };
 
-const YT = /(youtube\.com|youtu\.be)\//i;
-
-const IDEAS = ["Palak paneer", "Kerala avial", "Veg pulao", "Pesarattu", "Kadai paneer", "Bisi bele bath"];
+const IDEAS = ["Palak paneer", "Kerala avial", "Veg pulao", "Bisi bele bath", "Kadai paneer", "Rava kesari"];
+const TWEAK_OPTIONS: { label: string; id: CustomisationId }[] = [
+  { label: "Low oil", id: "low_oil" },
+  { label: "Less spicy", id: "less_spicy" },
+  { label: "Kid friendly", id: "kid_friendly" },
+];
 
 export function StudioView() {
   const router = useRouter();
   const settings = useSettings();
+  const saved = useSavedRecipes();
   const hydrated = useHydrated();
+  const ai = aiReady(settings);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
-  const [busy, setBusy] = useState<null | "video" | "chat" | "compose">(null);
+  const [busy, setBusy] = useState<null | "video" | "search" | "chat" | "compose" | "convert">(null);
   const [video, setVideo] = useState<Video | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [servings, setServings] = useState<number | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const started = useRef(false);
 
@@ -70,7 +87,7 @@ export function StudioView() {
 
   async function post<T>(path: string, body: unknown): Promise<T> {
     const res = await fetch(path, { method: "POST", headers: aiHeaders(), body: JSON.stringify(body) });
-    const data = await res.json().catch(() => ({ error: "Unexpected response." }));
+    const data = await res.json().catch(() => ({ error: "Unexpected response from the server." }));
     if (!res.ok) {
       const err = new Error(data.error || "Something went wrong") as Error & { status?: number };
       err.status = res.status;
@@ -79,30 +96,32 @@ export function StudioView() {
     return data as T;
   }
 
-  function fail(e: unknown) {
+  function fail(list: Msg[], e: unknown) {
     const status = (e as { status?: number }).status;
-    setMsgs((m) => [...m, { role: "error", content: e instanceof Error ? e.message : "Something went wrong", needsKey: status === 401 }]);
+    setMsgs([...list, { role: "error", content: e instanceof Error ? e.message : "Something went wrong", needsKey: status === 401 }]);
     setBusy(null);
   }
 
+  function finish(list: Msg[], r: Recipe, notes?: string) {
+    saveRecipe(r);
+    setRecipe(r);
+    setMsgs([...list, { role: "recipe", recipe: r, notes }]);
+    setBusy(null);
+  }
+
+  // ---------- AI path ----------
+
   async function ask(list: Msg[], v: Video | null) {
-    if (!settings.openaiKey) {
-      setMsgs([...list, { role: "error", content: "To chat and write recipes, add your OpenAI key. It stays on this phone.", needsKey: true }]);
-      return;
-    }
     setBusy("chat");
     try {
-      const out = await post<{ message: string; options: string[]; multiSelect: boolean; ready: boolean }>("/api/chat", {
-        messages: conversation(list),
-        video: v,
-      });
+      const out = await post<{ message: string; options: string[]; multiSelect: boolean; ready: boolean }>("/api/chat", { messages: conversation(list), video: v });
       const next: Msg[] = [...list, { role: "assistant", content: out.message, options: out.ready ? [] : out.options, multiSelect: out.multiSelect }];
       setMsgs(next);
       setPicked([]);
       setBusy(null);
       if (out.ready) await compose(next, v);
     } catch (e) {
-      fail(e);
+      fail(list, e);
     }
   }
 
@@ -111,12 +130,73 @@ export function StudioView() {
     try {
       const body = tweak && recipe ? { recipe, instruction: tweak } : { video: v, conversation: conversation(list) };
       const out = await post<{ recipe: Recipe; notes: string }>("/api/compose", body);
-      saveRecipe(out.recipe);
-      setRecipe(out.recipe);
-      setMsgs([...list, { role: "recipe", recipe: out.recipe, notes: out.notes }]);
+      finish(list, out.recipe, out.notes);
+    } catch (e) {
+      fail(list, e);
+    }
+  }
+
+  // ---------- free path ----------
+
+  function convertFree(list: Msg[], v: Video, people: number | null, tweaks: CustomisationId[]) {
+    if (!v.recipe) return;
+    setBusy("convert");
+    try {
+      let r = convertRecipe(v.recipe, { title: v.title, channel: v.channel, url: v.url });
+      if (people) r = scaleRecipe(r, people);
+      if (tweaks.length) r = { ...applyOfflineTweaks(r, tweaks), name: r.name };
+      finish(list, r, r.warnings?.join(" "));
+    } catch (e) {
+      fail(list, e);
+    }
+  }
+
+  function askServings(list: Msg[], v: Video) {
+    const n = v.recipe?.servings;
+    setMsgs([
+      ...list,
+      {
+        role: "assistant",
+        content: `Found ${v.channel ? `${v.channel}’s` : "the"} written recipe: ${v.recipe!.ingredients.length} ingredients, ${v.recipe!.steps.length || "a few"} steps. How many are you cooking for?`,
+        options: [...(n ? [`As written (${n})`] : []), "1", "2", "3", "4", "6"],
+        action: "servings",
+      },
+    ]);
+  }
+
+  async function searchDish(list: Msg[], dish: string, excludeId?: string) {
+    setBusy("search");
+    try {
+      const { results } = await post<{ results: SearchResult[] }>("/api/search", { q: dish });
+      const shown = results.filter((r) => r.id !== excludeId).slice(0, 4);
+      if (!shown.length) throw new Error("No recipe videos found. Try another name, or paste a link.");
+      setMsgs([...list, { role: "results", results: shown }]);
       setBusy(null);
     } catch (e) {
-      fail(e);
+      fail(list, e);
+    }
+  }
+
+  async function loadVideo(list: Msg[], url: string) {
+    setBusy("video");
+    try {
+      const { video: v } = await post<{ video: Video }>("/api/youtube", { url });
+      setVideo(v);
+      setRecipe(null);
+      setServings(null);
+      const withVideo: Msg[] = [...list, { role: "video", video: v }];
+      setMsgs(withVideo);
+      setBusy(null);
+      if (ai) return ask(withVideo, v);
+      if (v.recipe) return askServings(withVideo, v);
+      const note: Msg = {
+        role: "assistant",
+        content:
+          "This video doesn’t link a written recipe, so I can’t measure it exactly without AI. Here are videos for the same dish from cooks who publish their measurements — or connect a free AI that can watch this one.",
+      };
+      await searchDish([...withVideo, note], cleanName(v.title), v.id);
+    } catch (e) {
+      fail(list, e);
     }
   }
 
@@ -127,46 +207,66 @@ export function StudioView() {
     const list: Msg[] = [...msgs, { role: "user", content }];
     setMsgs(list);
 
+    if (isYouTubeUrl(content)) return loadVideo(list, content);
+
     // A finished recipe in the chat: further messages are tweaks to it.
-    if (recipe && !YT.test(content)) {
-      if (!settings.openaiKey) return ask(list, video);
-      return compose(list, video, content);
+    if (recipe) {
+      if (ai) return compose(list, video, content);
+      const { servings: n, tweaks } = parseOfflineTweak(content);
+      if (!n && !tweaks.length) {
+        setMsgs([...list, { role: "assistant", content: "Without AI I can change the number of people, and make it low oil, less spicy or kid friendly. Try “for 5 people” or “less spicy”. For anything else, connect a free AI in Settings." }]);
+        return;
+      }
+      let r = n ? scaleRecipe(recipe, n) : recipe;
+      if (tweaks.length) r = { ...applyOfflineTweaks(r, tweaks), name: r.name };
+      return finish(list, r);
     }
 
-    if (YT.test(content)) {
-      setBusy("video");
-      try {
-        const { video: v } = await post<{ video: Video }>("/api/youtube", { url: content });
-        setVideo(v);
-        setRecipe(null);
-        const withVideo: Msg[] = [...list, { role: "video", video: v }];
-        setMsgs(withVideo);
-        setBusy(null);
-        await ask(withVideo, v);
-      } catch (e) {
-        fail(e);
-      }
-      return;
-    }
-    await ask(list, video);
+    const local = findInLibrary(content, [...saved, ...SEED_RECIPES]);
+    const withLib: Msg[] = local ? [...list, { role: "library", recipe: local }] : list;
+    if (local) setMsgs(withLib);
+    if (ai) return ask(withLib, video);
+    return searchDish(withLib, content);
   }
 
-  function choose(option: string, multi?: boolean) {
-    if (multi) {
+  function choose(m: Extract<Msg, { role: "assistant" }>, option: string) {
+    if (m.multiSelect) {
       setPicked((p) => (p.includes(option) ? p.filter((x) => x !== option) : [...p, option]));
+      return;
+    }
+    if (m.action === "servings" && video) {
+      const n = parseInt(option.replace(/\D+/g, ""), 10) || null;
+      setServings(n);
+      const list: Msg[] = [...msgs, { role: "user", content: option }];
+      setMsgs([...list, { role: "assistant", content: "Any changes? Pick any, or tap Done.", options: TWEAK_OPTIONS.map((t) => t.label), multiSelect: true, action: "tweaks" }]);
+      setPicked([]);
       return;
     }
     void send(option);
   }
 
+  function confirmMulti(m: Extract<Msg, { role: "assistant" }>) {
+    const label = picked.length ? picked.join(", ") : "As written";
+    const list: Msg[] = [...msgs, { role: "user", content: label }];
+    if (m.action === "tweaks" && video) {
+      setMsgs(list);
+      const ids = TWEAK_OPTIONS.filter((t) => picked.includes(t.label)).map((t) => t.id);
+      setPicked([]);
+      return convertFree(list, video, servings, ids);
+    }
+    setPicked([]);
+    void send(label);
+  }
+
   function justMakeIt() {
     const list: Msg[] = [...msgs, { role: "user", content: "Just make it — use sensible defaults." }];
     setMsgs(list);
+    if (!ai && video?.recipe) return convertFree(list, video, servings, []);
     void compose(list, video);
   }
 
   const last = msgs[msgs.length - 1];
-  const awaitingOptions = last?.role === "assistant" && last.options?.length && !busy;
+  const awaitingOptions = last?.role === "assistant" && !!last.options?.length && !busy;
   const empty = msgs.length === 0;
 
   return (
@@ -177,7 +277,7 @@ export function StudioView() {
         </button>
         <div className="text-center">
           <p className="font-display text-[22px] leading-none">Recipe studio</p>
-          <p className="eyebrow mt-1 text-ink-3">{video ? "From YouTube" : "Describe or paste"}</p>
+          <p className="eyebrow mt-1 text-ink-3">{hydrated ? (ai && settings.provider !== "none" ? `AI · ${PROVIDERS[settings.provider].name}` : "Free converter") : " "}</p>
         </div>
         {msgs.length ? (
           <button
@@ -185,6 +285,7 @@ export function StudioView() {
               setMsgs([]);
               setVideo(null);
               setRecipe(null);
+              setServings(null);
             }}
             className="press rounded-full border border-line-2 px-3 py-2 text-[12px]"
           >
@@ -197,13 +298,13 @@ export function StudioView() {
 
       <div className="no-scrollbar flex-1 overflow-y-auto px-4 pb-4">
         {empty && (
-          <div className="pt-8 animate-rise">
+          <div className="animate-rise pt-8">
             <p className="eyebrow text-ink-3">New recipe</p>
             <h1 className="font-display mt-2 text-[46px] leading-[0.95]">
               What are we <em className="text-chilli">cooking?</em>
             </h1>
-            <p className="mt-3 max-w-[320px] text-[15px] leading-relaxed text-ink-2">
-              Paste a YouTube recipe link, or just name a dish. I&rsquo;ll ask a couple of quick questions, then write every step with exact measures.
+            <p className="mt-3 max-w-[330px] text-[15px] leading-relaxed text-ink-2">
+              Paste a YouTube recipe link, or name a dish. I&rsquo;ll find the cook&rsquo;s written recipe and turn it into measured, timed steps.
             </p>
             <button
               onClick={async () => {
@@ -228,16 +329,16 @@ export function StudioView() {
             <p className="eyebrow mt-8 text-ink-3">Or try</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {IDEAS.map((i) => (
-                <button key={i} onClick={() => send(`I want to make ${i}`)} className="press rounded-full border border-line-2 px-3.5 py-2 text-[13px] text-ink-2">
+                <button key={i} onClick={() => send(i)} className="press rounded-full border border-line-2 px-3.5 py-2 text-[13px] text-ink-2">
                   {i}
                 </button>
               ))}
             </div>
-            {hydrated && !settings.openaiKey && (
-              <Link href="/settings" className="press mt-8 flex items-center justify-between rounded-[20px] border border-dashed border-turmeric bg-turmeric-soft/40 p-4">
+            {hydrated && !ai && (
+              <Link href="/settings" className="press mt-8 flex items-center justify-between rounded-[20px] border border-dashed border-line-2 p-4">
                 <span>
-                  <span className="block text-[14px] font-medium">Connect OpenAI to use the studio</span>
-                  <span className="block text-[12px] text-ink-2">Your key stays on this phone.</span>
+                  <span className="block text-[14px] font-medium">Using the free converter</span>
+                  <span className="block text-[12px] text-ink-2">No AI needed. Connect a free AI (Gemini, Groq) for chat and more.</span>
                 </span>
                 <ArrowRight size={18} />
               </Link>
@@ -247,10 +348,22 @@ export function StudioView() {
 
         <div className="space-y-3 pt-4">
           {msgs.map((m, i) => (
-            <Bubble key={i} m={m} onOpen={(r) => router.push(`/recipe/${r.id}`)} onCook={(r) => {
-              saveProgress({ recipeId: r.id, servings: r.servings, index: 0 });
-              router.push(`/cook/${r.id}`);
-            }} />
+            <Bubble
+              key={i}
+              m={m}
+              ai={ai}
+              onPick={(r) => send(`https://www.youtube.com/watch?v=${r.id}`)}
+              onConvertFree={(v) => {
+                const list: Msg[] = [...msgs, { role: "user", content: "Convert it without AI" }];
+                setMsgs(list);
+                askServings(list, v);
+              }}
+              onOpen={(r) => router.push(`/recipe/${r.id}`)}
+              onCook={(r) => {
+                saveProgress({ recipeId: r.id, servings: r.servings, index: 0 });
+                router.push(`/cook/${r.id}`);
+              }}
+            />
           ))}
         </div>
 
@@ -262,7 +375,7 @@ export function StudioView() {
                 return (
                   <button
                     key={o}
-                    onClick={() => choose(o, last.multiSelect)}
+                    onClick={() => choose(last, o)}
                     className={`press inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[14px] ${on ? "border-ink bg-ink text-paper" : "border-ink/30 bg-card text-ink"}`}
                   >
                     {on && <Check size={14} />}
@@ -273,29 +386,28 @@ export function StudioView() {
             </div>
             <div className="mt-3 flex items-center gap-3">
               {last.multiSelect && (
-                <button
-                  disabled={!picked.length}
-                  onClick={() => send(picked.join(", "))}
-                  className="press rounded-full bg-ink px-4 py-2 text-[13px] font-medium text-paper disabled:opacity-30"
-                >
-                  Done
+                <button onClick={() => confirmMulti(last)} className="press rounded-full bg-ink px-4 py-2 text-[13px] font-medium text-paper">
+                  {picked.length ? "Done" : "Done — as written"}
                 </button>
               )}
-              <button onClick={justMakeIt} className="press text-[13px] text-ink-2 underline underline-offset-4">
-                Skip questions, write it now
-              </button>
+              {(ai || video?.recipe) && (
+                <button onClick={justMakeIt} className="press text-[13px] text-ink-2 underline underline-offset-4">
+                  Skip questions, write it now
+                </button>
+              )}
             </div>
           </div>
         )}
 
-        {busy === "video" && <TypingBubble label="Watching the video" />}
+        {busy === "video" && <TypingBubble label="Reading the video and the cook’s written recipe" />}
+        {busy === "search" && <TypingBubble label="Searching YouTube" />}
         {busy === "chat" && <TypingBubble label="Thinking" />}
-        {busy === "compose" && (
+        {(busy === "compose" || busy === "convert") && (
           <div className="mt-3 rounded-[26px] border border-line bg-card">
             <CookingLoader
               inline
               title={recipe ? "Updating your recipe" : "Writing your recipe"}
-              lines={["Reading the method", "Checking measurements against trusted recipes", "Converting everything to grams and spoons", "Splitting it into tiny steps", "Adding timers and cues"]}
+              lines={busy === "convert" ? ["Measuring every ingredient", "Splitting into small steps"] : ["Reading the method", "Checking measurements", "Converting everything to grams and spoons", "Splitting it into tiny steps", "Adding timers and cues"]}
             />
           </div>
         )}
@@ -322,6 +434,7 @@ export function StudioView() {
               }
             }}
             rows={1}
+            aria-label="Message"
             placeholder={recipe ? "Tweak it: “less spicy”, “for 6 people”…" : "Paste a link or name a dish"}
             className="max-h-28 min-h-[44px] flex-1 resize-none bg-transparent py-2.5 text-[15px] placeholder:text-ink-3 focus:outline-none"
           />
@@ -336,7 +449,7 @@ export function StudioView() {
 
 function TypingBubble({ label }: { label: string }) {
   return (
-    <div className="mt-3 flex w-fit items-center gap-2 rounded-[20px] rounded-bl-md bg-paper-2 px-4 py-3 text-[14px] text-ink-2 animate-fade">
+    <div className="animate-fade mt-3 flex w-fit items-center gap-2 rounded-[20px] rounded-bl-md bg-paper-2 px-4 py-3 text-[14px] text-ink-2" role="status">
       {label}
       <span className="inline-flex gap-1">
         {[0, 1, 2].map((d) => (
@@ -347,11 +460,30 @@ function TypingBubble({ label }: { label: string }) {
   );
 }
 
-function Bubble({ m, onOpen, onCook }: { m: Msg; onOpen: (r: Recipe) => void; onCook: (r: Recipe) => void }) {
+function isTrusted(channel: string) {
+  const c = channel.toLowerCase();
+  return TRUSTED_CHANNELS.some((t) => c.includes(t));
+}
+
+function Bubble({
+  m,
+  ai,
+  onPick,
+  onConvertFree,
+  onOpen,
+  onCook,
+}: {
+  m: Msg;
+  ai: boolean;
+  onPick: (r: SearchResult) => void;
+  onConvertFree: (v: Video) => void;
+  onOpen: (r: Recipe) => void;
+  onCook: (r: Recipe) => void;
+}) {
   if (m.role === "user") {
-    const isLink = YT.test(m.content);
+    const isLink = isYouTubeUrl(m.content);
     return (
-      <div className="flex justify-end animate-rise">
+      <div className="animate-rise flex justify-end">
         <p className={`max-w-[85%] break-words rounded-[20px] rounded-br-md bg-ink px-4 py-2.5 text-[15px] text-paper ${isLink ? "font-mono text-[12px]" : ""}`}>{m.content}</p>
       </div>
     );
@@ -365,9 +497,9 @@ function Bubble({ m, onOpen, onCook }: { m: Msg; onOpen: (r: Recipe) => void; on
   }
   if (m.role === "video") {
     const v = m.video;
-    const signals = [v.linkedRecipe ? "written recipe" : null, v.transcript ? "transcript" : null, v.description ? "description" : null].filter(Boolean);
+    const signals = [v.recipe ? (v.recipe.url ? "written recipe" : "ingredients in description") : null, v.transcript ? "transcript" : null, v.description ? "description" : null].filter(Boolean);
     return (
-      <div className="overflow-hidden rounded-[22px] border border-line-2 bg-card animate-rise">
+      <div className="animate-rise overflow-hidden rounded-[22px] border border-line-2 bg-card">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={v.thumbnail} alt="" className="aspect-video w-full object-cover" />
         <div className="p-3.5">
@@ -376,19 +508,60 @@ function Bubble({ m, onOpen, onCook }: { m: Msg; onOpen: (r: Recipe) => void; on
           </p>
           <p className="mt-1 line-clamp-2 text-[15px] font-medium leading-snug">{v.title}</p>
           <p className="mt-2 text-[12px] text-ink-3">Read: {signals.join(" · ") || "title only"}</p>
+          {ai && v.recipe && (
+            <button onClick={() => onConvertFree(v)} className="press mt-3 rounded-full border border-line-2 px-3 py-1.5 text-[12px]">
+              Convert free instead (no AI)
+            </button>
+          )}
         </div>
       </div>
+    );
+  }
+  if (m.role === "results") {
+    return (
+      <div className="animate-rise space-y-2">
+        <p className="eyebrow px-1 text-ink-3">Pick a video</p>
+        {m.results.map((r) => (
+          <button key={r.id} onClick={() => onPick(r)} className="press flex w-full items-center gap-3 rounded-[18px] border border-line-2 bg-card p-2 pr-3 text-left">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={r.thumbnail} alt="" className="h-[62px] w-[110px] shrink-0 rounded-xl object-cover" />
+            <span className="min-w-0 flex-1">
+              <span className="line-clamp-2 text-[13px] font-medium leading-snug">{r.title}</span>
+              <span className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-3">
+                {r.channel}
+                {isTrusted(r.channel) && <span className="rounded bg-leaf-soft px-1.5 py-0.5 text-[10px] font-medium text-leaf">Measured recipe</span>}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+  if (m.role === "library") {
+    const r = m.recipe;
+    return (
+      <button onClick={() => onOpen(r)} className="press animate-rise flex w-full items-center gap-3 rounded-[22px] border border-ink bg-card p-3 text-left">
+        <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl ${HUE_BG[r.hue]}`}>
+          <DishArt recipe={r} className="h-11 w-11" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="eyebrow block text-leaf">Already in your kitchen</span>
+          <span className="font-display block text-[22px] leading-tight">{r.name}</span>
+          <span className="block text-[12px] text-ink-3">Tested, measured · {totalMinutes(r)} min</span>
+        </span>
+        <ArrowRight size={18} />
+      </button>
     );
   }
   if (m.role === "recipe") {
     const r = m.recipe;
     const steps = r.prep.length + r.cook.length;
     return (
-      <div className="overflow-hidden rounded-[26px] border border-ink bg-card animate-rise">
+      <div className="animate-rise overflow-hidden rounded-[26px] border border-ink bg-card">
         <div className={`flex items-center gap-4 p-4 ${HUE_BG[r.hue]}`}>
           <DishArt recipe={r} className="h-20 w-20 shrink-0" />
           <div className="min-w-0">
-            <p className="eyebrow text-ink/60">Saved to your recipes</p>
+            <p className="eyebrow text-ink/60">{r.method === "rules" ? "Converted free · saved" : "Saved to your recipes"}</p>
             <p className="font-display text-[28px] leading-[1]">{r.name}</p>
             <p className="mt-1 text-[12px] text-ink/70 tnum">
               {steps} steps · {totalMinutes(r)} min · serves {r.servings}
@@ -404,18 +577,19 @@ function Bubble({ m, onOpen, onCook }: { m: Msg; onOpen: (r: Recipe) => void; on
             Start cooking <ArrowRight size={16} />
           </button>
         </div>
-        <p className="px-4 pb-3 text-[12px] text-ink-3">Want changes? Type them below, like &ldquo;less oil&rdquo; or &ldquo;for 5 people&rdquo;.</p>
+        <p className="px-4 pb-3 text-[12px] text-ink-3">Want changes? Type them below, like &ldquo;less spicy&rdquo; or &ldquo;for 5 people&rdquo;.</p>
       </div>
     );
   }
   return (
-    <div className="rounded-[20px] border border-chilli/40 bg-chilli-soft/30 px-4 py-3 text-[14px] text-ink animate-rise">
+    <div className="animate-rise rounded-[20px] border border-chilli/40 bg-chilli-soft/30 px-4 py-3 text-[14px] text-ink" role="alert">
       {m.content}
       {m.needsKey && (
         <Link href="/settings" className="press mt-2 flex w-fit items-center gap-1 rounded-full bg-ink px-3.5 py-2 text-[13px] font-medium text-paper">
-          Add OpenAI key <ArrowRight size={14} />
+          Open settings <ArrowRight size={14} />
         </Link>
       )}
     </div>
   );
 }
+

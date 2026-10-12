@@ -6,17 +6,25 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test --project=mobile",
+    "test:live": "playwright test --project=live",
+    "validate": "tsx scripts/validate-recipes.ts",
+    "check": "tsc --noEmit && eslint && vitest run && tsx scripts/validate-recipes.ts"
   },
   "dependencies": {
     "next": "16.4.0",
     "openai": "^7.32.0",
+    "parse-ingredient": "^3.0.0",
     "qrcode": "^1.5.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",
@@ -26,6 +34,7 @@
     "eslint-config-next": "16.4.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }

@@ -48,6 +48,8 @@ export interface Ingredient {
   unit: Unit;
   approx?: string; // "about 1 medium onion"
   group?: "main" | "spice" | "tempering" | "garnish" | "liquid";
+  section?: string; // the source recipe's own grouping, e.g. "For the masala paste"
+  estimated?: boolean; // the source was vague ("few", "to taste"); we picked a standard amount
   tag?: "oil" | "salt" | "chilli" | "sugar" | "carb" | "protein";
 }
 
@@ -91,5 +93,7 @@ export interface Recipe {
   serveWith?: string;
   source?: { kind: "seed" | "youtube" | "ai"; url?: string; title?: string; channel?: string };
   variant?: string[]; // customisations applied, e.g. ["Low oil", "Kid friendly"]
+  method?: "rules" | "ai"; // how an imported recipe was converted
+  warnings?: string[]; // things the cook should double-check
   createdAt?: number;
 }

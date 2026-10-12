@@ -2,36 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { DEFAULT_MODEL, aiHeaders, saveSettings, useSettings } from "@/lib/store";
+import { aiHeaders, aiReady, modelFor, saveKey, saveModel, saveSettings, useSettings } from "@/lib/store";
+import { PROVIDERS, PROVIDER_ORDER, type ProviderId } from "@/lib/providers";
 import { speechRecognitionSupported, speak, unlockAudio } from "@/lib/kitchen";
 import { useHydrated } from "@/lib/useRecipe";
 import { ArrowLeft, Check, Eye } from "./Icons";
-
-const MODELS = [DEFAULT_MODEL, "gpt-5.4", "gpt-5-mini"];
 
 export function SettingsView() {
   const router = useRouter();
   const settings = useSettings();
   const hydrated = useHydrated();
-  const [draft, setDraft] = useState<string | null>(null);
-  const [show, setShow] = useState(false);
-  const [test, setTest] = useState<{ state: "idle" | "busy" | "ok" | "fail"; msg?: string }>({ state: "idle" });
-
-  const key = draft ?? settings.openaiKey;
-  const dirty = draft !== null && draft !== settings.openaiKey;
-
-  async function check() {
-    if (dirty) saveSettings({ openaiKey: (draft ?? "").trim() });
-    setDraft(null);
-    setTest({ state: "busy" });
-    try {
-      const res = await fetch("/api/ping", { method: "POST", headers: aiHeaders() });
-      const data = await res.json();
-      setTest(res.ok ? { state: "ok", msg: `Connected · ${data.model}` } : { state: "fail", msg: data.error });
-    } catch {
-      setTest({ state: "fail", msg: "Couldn't reach the server." });
-    }
-  }
 
   return (
     <main className="app-min-h pb-16">
@@ -44,96 +24,32 @@ export function SettingsView() {
         <h1 className="font-display text-[48px] leading-none">Settings</h1>
       </div>
 
-      <section className="mx-4 mt-8 rounded-[26px] border border-line-2 bg-card p-5">
-        <div className="flex items-center justify-between">
-          <p className="eyebrow text-ink-3">AI · OpenAI</p>
-          {hydrated && (
-            <span className={`eyebrow inline-flex items-center gap-1.5 ${settings.openaiKey ? "text-leaf" : "text-turmeric"}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${settings.openaiKey ? "bg-leaf" : "bg-turmeric"}`} />
-              {settings.openaiKey ? "Key saved" : "No key"}
-            </span>
-          )}
-        </div>
-        <h2 className="font-display mt-2 text-[28px] leading-none">Your OpenAI key</h2>
-        <p className="mt-2 text-[13px] leading-snug text-ink-2">
-          Powers the YouTube converter, the chat and &ldquo;make it yours&rdquo;. It&rsquo;s stored only on this phone and sent with each request — never saved on our server.
-        </p>
-        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-line-2 bg-paper px-3 focus-within:border-ink/50">
-          <input
-            value={key}
-            onChange={(e) => setDraft(e.target.value)}
-            type={show ? "text" : "password"}
-            placeholder="sk-…"
-            autoComplete="off"
-            spellCheck={false}
-            aria-label="OpenAI API key"
-            className="min-w-0 flex-1 bg-transparent py-3.5 font-mono text-[14px] placeholder:text-ink-3 focus:outline-none"
-          />
-          <button onClick={() => setShow((s) => !s)} className="press p-2 text-ink-3" aria-label={show ? "Hide key" : "Show key"}>
-            <Eye size={18} />
-          </button>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => {
-              saveSettings({ openaiKey: (draft ?? "").trim() });
-              setDraft(null);
-              setTest({ state: "idle" });
-            }}
-            disabled={!dirty}
-            className="press rounded-full bg-ink px-4 py-2.5 text-[13px] font-medium text-paper disabled:opacity-30"
-          >
-            Save key
-          </button>
-          <button onClick={check} disabled={!key || test.state === "busy"} className="press rounded-full border border-line-2 px-4 py-2.5 text-[13px] font-medium disabled:opacity-30">
-            {test.state === "busy" ? "Testing…" : "Test connection"}
-          </button>
-          {settings.openaiKey && !dirty && (
-            <button
-              onClick={() => {
-                saveSettings({ openaiKey: "" });
-                setTest({ state: "idle" });
-              }}
-              className="press px-2 py-2.5 text-[13px] text-chilli"
-            >
-              Remove
-            </button>
-          )}
-        </div>
-        {test.state === "ok" && (
-          <p className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-leaf">
-            <Check size={16} /> {test.msg}
+      <section className="mt-8 px-4">
+        <div className="px-1">
+          <p className="eyebrow text-ink-3">Recipe converter</p>
+          <p className="mt-2 text-[13px] leading-snug text-ink-2">
+            Adukala works without any AI. Connecting a free AI only adds the chat, video watching and extra customisations.
           </p>
-        )}
-        {test.state === "fail" && <p className="mt-3 text-[13px] text-chilli">{test.msg}</p>}
-        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="mt-4 block text-[12px] text-ink-3 underline underline-offset-4">
-          Get a key at platform.openai.com
-        </a>
-
-        <div className="mt-6 border-t border-line pt-5">
-          <p className="eyebrow text-ink-3">Model</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {MODELS.map((m) => (
-              <button
-                key={m}
-                onClick={() => saveSettings({ model: m })}
-                className={`press rounded-full border px-3.5 py-2 font-mono text-[12px] ${settings.model === m ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-2"}`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-          <input
-            value={settings.model}
-            onChange={(e) => saveSettings({ model: e.target.value })}
-            aria-label="Custom model name"
-            className="mt-3 w-full rounded-xl border border-line bg-paper px-3 py-2.5 font-mono text-[13px] focus:border-ink/50 focus:outline-none"
-          />
-          <p className="mt-2 text-[12px] text-ink-3">Or type any model your account has.</p>
         </div>
+
+        <div className="mt-4 space-y-2" role="radiogroup" aria-label="Recipe converter">
+          <Choice
+            selected={settings.provider === "none"}
+            onSelect={() => saveSettings({ provider: "none" })}
+            title="Built-in (no AI)"
+            badge="Free · open source"
+            body="Reads the cook's written recipe (from the video description or their website) and turns it into measured steps with rules. Uses no AI service at all."
+          />
+          {PROVIDER_ORDER.map((id) => (
+            <ProviderChoice key={id} id={id} />
+          ))}
+        </div>
+        {hydrated && settings.provider !== "none" && !aiReady(settings) && (
+          <p className="mt-3 px-1 text-[13px] text-chilli">Add a key for {PROVIDERS[settings.provider].name}, or switch back to Built-in.</p>
+        )}
       </section>
 
-      <section className="mx-4 mt-4 rounded-[26px] border border-line-2 bg-card p-5">
+      <section className="mx-4 mt-6 rounded-[26px] border border-line-2 bg-card p-5">
         <p className="eyebrow text-ink-3">Hands-free</p>
         <Toggle
           label="Read steps aloud"
@@ -155,9 +71,156 @@ export function SettingsView() {
       </section>
 
       <p className="mx-5 mt-8 text-[12px] leading-relaxed text-ink-3">
-        Adukala keeps your recipes and progress in this browser. Clearing site data removes them.
+        Keys and recipes are stored only in this browser. AI keys are sent with each request to your chosen provider and never saved on our server. Adukala is open source:{" "}
+        <a className="underline underline-offset-2" href="https://github.com/scorpian2506/adukala" target="_blank" rel="noreferrer">
+          github.com/scorpian2506/adukala
+        </a>
+        .
       </p>
     </main>
+  );
+}
+
+function Choice({ selected, onSelect, title, badge, body, children }: { selected: boolean; onSelect: () => void; title: string; badge?: string; body: string; children?: React.ReactNode }) {
+  return (
+    <div className={`rounded-[22px] border p-4 transition-colors ${selected ? "border-ink bg-card" : "border-line-2 bg-card/50"}`}>
+      <button onClick={onSelect} role="radio" aria-checked={selected} className="press flex w-full items-start gap-3 text-left">
+        <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 ${selected ? "border-ink" : "border-line-2"}`}>
+          {selected && <span className="h-2.5 w-2.5 rounded-full bg-ink" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="text-[16px] font-medium">{title}</span>
+            {badge && <span className="eyebrow rounded-full bg-paper-2 px-2 py-0.5 text-ink-2">{badge}</span>}
+          </span>
+          <span className="mt-1 block text-[13px] leading-snug text-ink-2">{body}</span>
+        </span>
+      </button>
+      {selected && children}
+    </div>
+  );
+}
+
+function ProviderChoice({ id }: { id: ProviderId }) {
+  const settings = useSettings();
+  const p = PROVIDERS[id];
+  const [draft, setDraft] = useState<string | null>(null);
+  const [show, setShow] = useState(false);
+  const [test, setTest] = useState<{ state: "idle" | "busy" | "ok" | "fail"; msg?: string }>({ state: "idle" });
+  const saved = settings.keys[id] ?? "";
+  const key = draft ?? saved;
+  const dirty = draft !== null && draft.trim() !== saved;
+
+  async function check() {
+    if (dirty) saveKey(id, draft ?? "");
+    setDraft(null);
+    setTest({ state: "busy" });
+    try {
+      const res = await fetch("/api/ping", { method: "POST", headers: aiHeaders() });
+      const data = await res.json();
+      setTest(res.ok ? { state: "ok", msg: `Connected · ${data.model}` } : { state: "fail", msg: data.error });
+    } catch {
+      setTest({ state: "fail", msg: "Couldn't reach the server." });
+    }
+  }
+
+  return (
+    <Choice
+      selected={settings.provider === id}
+      onSelect={() => {
+        saveSettings({ provider: id });
+        setTest({ state: "idle" });
+      }}
+      title={p.name}
+      badge={p.free ? (p.localOnly ? "Free · local" : "Free key") : "Paid"}
+      body={p.tagline}
+    >
+      <div className="mt-4 border-t border-line pt-4">
+        {p.needsKey && (
+          <>
+            <div className="flex items-center gap-2 rounded-2xl border border-line-2 bg-paper px-3 focus-within:border-ink/50">
+              <input
+                value={key}
+                onChange={(e) => setDraft(e.target.value)}
+                type={show ? "text" : "password"}
+                placeholder="Paste your API key"
+                autoComplete="off"
+                spellCheck={false}
+                aria-label={`${p.name} API key`}
+                className="min-w-0 flex-1 bg-transparent py-3 font-mono text-[14px] placeholder:text-ink-3 focus:outline-none"
+              />
+              <button onClick={() => setShow((s) => !s)} className="press p-2 text-ink-3" aria-label={show ? "Hide key" : "Show key"}>
+                <Eye size={18} />
+              </button>
+            </div>
+            {p.keyUrl && (
+              <a href={p.keyUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-[12px] text-ink-3 underline underline-offset-4">
+                Get a {p.free ? "free " : ""}key from {p.name}
+              </a>
+            )}
+          </>
+        )}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {p.needsKey && (
+            <button
+              onClick={() => {
+                saveKey(id, draft ?? "");
+                setDraft(null);
+                setTest({ state: "idle" });
+              }}
+              disabled={!dirty}
+              className="press rounded-full bg-ink px-4 py-2.5 text-[13px] font-medium text-paper disabled:opacity-30"
+            >
+              Save key
+            </button>
+          )}
+          <button onClick={check} disabled={(p.needsKey && !key) || test.state === "busy"} className="press rounded-full border border-line-2 px-4 py-2.5 text-[13px] font-medium disabled:opacity-30">
+            {test.state === "busy" ? "Testing…" : "Test connection"}
+          </button>
+          {saved && !dirty && (
+            <button
+              onClick={() => {
+                saveKey(id, "");
+                setTest({ state: "idle" });
+              }}
+              className="press px-2 py-2.5 text-[13px] text-chilli"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+        {test.state === "ok" && (
+          <p className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-leaf" role="status">
+            <Check size={16} /> {test.msg}
+          </p>
+        )}
+        {test.state === "fail" && (
+          <p className="mt-3 text-[13px] text-chilli" role="alert">
+            {test.msg}
+          </p>
+        )}
+
+        <p className="eyebrow mt-5 text-ink-3">Model</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {p.models.map((m) => (
+            <button
+              key={m}
+              onClick={() => saveModel(id, m)}
+              className={`press rounded-full border px-3 py-1.5 font-mono text-[11px] ${modelFor(settings, id) === m ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-2"}`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        <input
+          value={settings.models[id] ?? p.defaultModel}
+          onChange={(e) => saveModel(id, e.target.value)}
+          aria-label={`${p.name} model name`}
+          className="mt-2 w-full rounded-xl border border-line bg-paper px-3 py-2.5 font-mono text-[13px] focus:border-ink/50 focus:outline-none"
+        />
+        <p className="mt-1.5 text-[12px] text-ink-3">Free models change often. Type any model name your key can use.</p>
+      </div>
+    </Choice>
   );
 }
 
