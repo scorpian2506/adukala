@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { SEED_RECIPES, flattenSteps, stepNumberAt } from "@/lib/recipes";
-import { matchesFacet, type Facet } from "@/lib/search";
 import { aiReady, handoff, markedIds, useMarks, useProgressMap, useSavedRecipes, useSettings } from "@/lib/store";
 import type { Recipe } from "@/lib/types";
 import { Wordmark } from "./Wordmark";
@@ -12,18 +11,9 @@ import { RecipeCard, HUE_BG } from "./RecipeCard";
 import { DishArt } from "./DishArt";
 import { ArrowRight, Gear, YouTube, ChevronRight, SearchIcon, Pin } from "./Icons";
 import { BottomNav } from "./Nav";
+import { CuisineTiles } from "./CuisineTiles";
 import { StepArt } from "./StepArt";
 
-const CATEGORIES: { id: Facet; label: string; hue: Recipe["hue"] }[] = [
-  { id: "tamil", label: "Tamil", hue: "tamarind" },
-  { id: "kerala", label: "Kerala", hue: "coconut" },
-  { id: "north", label: "North Indian", hue: "chilli" },
-  { id: "biryani", label: "Biryani", hue: "turmeric" },
-  { id: "indochinese", label: "Indo-Chinese", hue: "chilli" },
-  { id: "kids", label: "Kids' meals", hue: "leaf" },
-  { id: "breakfast", label: "Breakfast", hue: "turmeric" },
-  { id: "dessert", label: "Sweets", hue: "coconut" },
-];
 
 // The first dishes most homes cook; shown on Home before "See all".
 const EVERYDAY = ["sambar", "dal-tadka", "idli", "plain-dosa", "chicken-biryani", "paneer-butter-masala", "tomato-rasam", "avial", "chana-masala", "veg-fried-rice", "curd-rice", "kerala-fish-curry"];
@@ -49,7 +39,6 @@ export function HomeView() {
   const byId = useMemo(() => new Map(all.map((r) => [r.id, r])), [all]);
   const pinned = markedIds(marks, "pin").map((id) => byId.get(id)).filter((r): r is Recipe => !!r);
   const everyday = [...EVERYDAY.map((id) => byId.get(id)).filter((r): r is Recipe => !!r), ...SEED_RECIPES.filter((r) => !EVERYDAY.includes(r.id))].slice(0, 10);
-  const categories = CATEGORIES.map((c) => ({ ...c, count: SEED_RECIPES.filter((r) => matchesFacet(r, c.id)).length })).filter((c) => c.count > 0);
 
   function submitLink(e: React.FormEvent) {
     e.preventDefault();
@@ -99,13 +88,14 @@ export function HomeView() {
           <span className="flex-1 whitespace-nowrap text-[15px]">Search {SEED_RECIPES.length} recipes</span>
           <span className="eyebrow hidden min-[380px]:inline">Biryani · Kids</span>
         </Link>
-        <div className="mt-4 grid grid-cols-4 gap-2">
-          {categories.map((c) => (
-            <Link key={c.id} href={`/search?f=${c.id}`} className={`press flex aspect-square flex-col justify-between rounded-[18px] p-2.5 ${HUE_BG[c.hue]}`}>
-              <span className="text-[12px] font-semibold leading-tight text-ink">{c.label}</span>
-              <span className="font-display text-[22px] leading-none text-ink/70 tnum">{c.count}</span>
-            </Link>
-          ))}
+        <div className="mt-6 flex items-baseline justify-between px-1">
+          <h2 className="font-display text-[30px] leading-none">What&rsquo;s cooking?</h2>
+          <Link href="/search" className="text-[13px] text-ink-2 underline underline-offset-4">
+            All {SEED_RECIPES.length}
+          </Link>
+        </div>
+        <div className="mt-3">
+          <CuisineTiles />
         </div>
       </section>
 

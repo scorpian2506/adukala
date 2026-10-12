@@ -1,4 +1,5 @@
-import { RECIPE_RULES, RECIPE_SCHEMA, clientFrom, errorResponse, geminiWatch, normalizeRecipe, structured } from "@/lib/ai";
+import { RECIPE_RULES, RECIPE_SCHEMA, clientFrom, errorResponse, geminiResearch, geminiWatch, normalizeRecipe, structured, type GeminiReply } from "@/lib/ai";
+import { conversionQuality, convertRecipe } from "@/lib/convert";
 import { sourceToPrompt, type VideoSource } from "@/lib/youtube";
 import type { Recipe } from "@/lib/types";
 
@@ -42,21 +43,31 @@ export async function POST(req: Request) {
       const convo = (body.conversation ?? []).map((m) => `${m.role === "user" ? "USER" : "ASSISTANT"}: ${m.content}`).join("\n");
       instructions += ai.provider.api === "responses" ? `\n\nUse web search to cross-check quantities against well-known Indian recipe sites when the source is vague or missing amounts. If the transcript is not available, search for the video title and channel to find the creator's own written recipe and follow it. Follow the source video's method and flavour where it is clear, but every amount must end up exact and realistic. Apply all preferences from the conversation.` : `\n\nFollow the creator's written recipe or the video notes closely. Where amounts are vague, use standard home-style Indian proportions. Apply all preferences from the conversation.`;
       let video = body.video ?? null;
-      // No written recipe and no captions: let Gemini watch the video itself.
-      if (video && !video.recipe && !video.transcript) {
-        const watched = await geminiWatch(ai, video.url).catch(() => null);
-        if (watched) video = { ...video, transcript: watched, transcriptLang: "notes from watching the video" };
+      let research: GeminiReply | null = null;
+      // Gemini: when the video has no usable written recipe, watch the video, then
+      // research published recipes for the same dish and use the best match.
+      const written = video?.recipe;
+      const usable = written ? conversionQuality(written, convertRecipe(written)).ok : false;
+      if (ai.provider.id === "gemini" && !usable) {
+        const watched = video ? await geminiWatch(ai, video.url).catch(() => null) : null;
+        if (video && watched) video = { ...video, transcript: watched, transcriptLang: "notes from watching the video" };
+        const dish = video?.title ?? (body.conversation ?? []).filter((m) => m.role === "user").map((m) => m.content).join(" ").slice(0, 300);
+        research = await geminiResearch(ai, dish, watched ?? video?.transcript ?? null).catch(() => null);
       }
       // Free tiers have small token budgets: send less transcript.
       const budget = ai.provider.free ? 8000 : 24000;
       input = [
         video ? `SOURCE\n${sourceToPrompt(video, budget)}` : "SOURCE: no video; the user described the dish in the conversation.",
+        research ? `BEST MATCHING PUBLISHED RECIPE (researched on the web; use its measurements, follow the video's method where they differ):\n${research.text.slice(0, 10000)}` : "",
         `CONVERSATION WITH THE USER:\n${convo || "(none)"}`,
-      ].join("\n\n");
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      const refs = research?.sources.length ? research.sources : undefined;
       if (body.video) {
-        extra.source = { kind: "youtube", url: body.video.url, title: body.video.title, channel: body.video.channel };
+        extra.source = { kind: "youtube", url: body.video.url, title: body.video.title, channel: body.video.channel, refs };
       } else {
-        extra.source = { kind: "ai" };
+        extra.source = { kind: "ai", refs };
       }
     }
 

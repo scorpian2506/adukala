@@ -23,7 +23,8 @@ import { StepArt } from "./StepArt";
 import { HUE_BG } from "./RecipeCard";
 import { DishArt } from "./DishArt";
 import { Loading, NotFound } from "./States";
-import { ArrowLeft, ArrowRight, Bell, Check, Close, Eye, List, Mic, Pause, Play, Plus, Reset, Speaker, SpeakerOff } from "./Icons";
+import { ArrowLeft, ArrowRight, Check, Close, Eye, List, Mic, Pause, Play, Plus, Reset, Speaker, SpeakerOff } from "./Icons";
+import { ConfirmSheet, TimeUpModal, TimerDock } from "./CookTimers";
 
 export function CookMode({ id }: { id: string }) {
   const { recipe, ready } = useRecipe(id);
@@ -44,7 +45,33 @@ interface BgTimer {
   id: number;
   label: string;
   endAt: number;
+  duration: number;
+  stepIndex: number;
   fired: boolean;
+}
+
+/** A timer that has finished and is waiting for the cook to confirm. */
+interface Alert {
+  id: number;
+  label: string;
+  fromStep: number;
+  current: boolean;
+}
+
+type Confirm = { kind: "running" | "notStarted" | "paused" | "whistles"; left: number };
+
+const timersKey = (recipeId: string) => `adukala.timers.${recipeId}`;
+function loadTimers(recipeId: string): BgTimer[] {
+  try {
+    return JSON.parse(window.sessionStorage.getItem(timersKey(recipeId)) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+function storeTimers(recipeId: string, timers: BgTimer[]) {
+  try {
+    window.sessionStorage.setItem(timersKey(recipeId), JSON.stringify(timers));
+  } catch {}
 }
 
 function freshTimer(key: number, screen: Screen | undefined): MainTimer | null {
@@ -70,11 +97,13 @@ function Cook({ recipe }: { recipe: Recipe }) {
   const [index, setIndex] = useState(() => Math.min(saved?.index ?? 0, screens.length - 1));
   const [dir, setDir] = useState<1 | -1>(1);
   const [timer, setTimer] = useState<MainTimer | null>(() => freshTimer(index, screens[index]));
-  const [bg, setBg] = useState<BgTimer[]>([]);
+  // Timers from earlier steps keep running in a floating dock (and survive a refresh).
+  const [bg, setBg] = useState<BgTimer[]>(() => loadTimers(recipe.id));
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [whistles, setWhistles] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [sheet, setSheet] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
 
   const screen = screens[index];
   const step = screen.type === "step" ? screen.step : null;
@@ -86,6 +115,8 @@ function Cook({ recipe }: { recipe: Recipe }) {
     if (screen.type === "done") clearProgress(recipe.id);
     else saveProgress({ recipeId: recipe.id, servings, index });
   }, [index, recipe.id, servings, screen.type]);
+
+  useEffect(() => storeTimers(recipe.id, bg), [recipe.id, bg]);
 
   // One clock for every running timer.
   const anyRunning = (timer?.endAt != null && !timer.fired) || bg.some((b) => !b.fired);
@@ -102,21 +133,23 @@ function Cook({ recipe }: { recipe: Recipe }) {
       if (settings.voice) speak("Time's up.");
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimer({ ...timer, fired: true, remaining: 0, endAt: null });
+      if (screen.type === "step") setAlerts((a) => [...a, { id: Date.now(), label: screen.step.title, fromStep: index, current: true }]);
     }
     const due = bg.filter((b) => !b.fired && now >= b.endAt);
     if (due.length) {
       chime();
-      setToast(`${due[0].label} — time's up`);
       if (settings.voice) speak(`${due[0].label}. Time's up.`);
-      setBg((cur) => cur.map((b) => (due.some((d) => d.id === b.id) ? { ...b, fired: true } : b)));
+      setBg((cur) => cur.filter((b) => !due.some((d) => d.id === b.id)));
+      setAlerts((a) => [...a, ...due.map((d) => ({ id: d.id, label: d.label, fromStep: d.stepIndex, current: false }))]);
     }
-  }, [now, timer, bg, settings.voice]);
+  }, [now, timer, bg, settings.voice, screen, index]);
 
+  // Keep ringing every few seconds until the cook confirms.
   useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 6000);
-    return () => clearTimeout(t);
-  }, [toast]);
+    if (!alerts.length) return;
+    const t = setInterval(() => chime(), 5000);
+    return () => clearInterval(t);
+  }, [alerts.length]);
 
   const sayStep = useCallback(
     (s: Screen) => {
@@ -158,8 +191,10 @@ function Cook({ recipe }: { recipe: Recipe }) {
       if (timer && timer.endAt !== null && !timer.fired && screen.type === "step") {
         const label = screen.step.title;
         const endAt = timer.endAt;
-        setBg((cur) => [...cur.filter((b) => !b.fired), { id: Date.now(), label, endAt, fired: false }]);
+        const duration = timer.duration;
+        setBg((cur) => [...cur.filter((b) => !b.fired), { id: Date.now(), label, endAt, duration, stepIndex: index, fired: false }]);
       }
+      setConfirm(null);
       setDir(delta);
       setIndex(next);
       setTimer(freshTimer(next, screens[next]));
@@ -179,6 +214,33 @@ function Cook({ recipe }: { recipe: Recipe }) {
     setNow(Date.now());
   }, []);
 
+  /**
+   * Moving on from a timed step: make sure the cook has actually done it.
+   * A running timer moves to the dock; an unstarted one can be started or skipped.
+   */
+  const requestNext = useCallback(() => {
+    unlockAudio();
+    if (confirm) return go(1); // second "next" confirms
+    if (screen.type === "step" && timer && !timer.fired) {
+      if (timer.endAt !== null) return setConfirm({ kind: "running", left: timeLeft(timer, Date.now()) });
+      return setConfirm({ kind: timer.remaining < timer.duration ? "paused" : "notStarted", left: timer.remaining });
+    }
+    if (screen.type === "step" && step?.whistles && whistles < step.whistles) return setConfirm({ kind: "whistles", left: step.whistles - whistles });
+    go(1);
+  }, [confirm, go, screen, timer, step, whistles]);
+
+  const startAndNext = useCallback(() => {
+    if (!timer || screen.type !== "step") return go(1);
+    const endAt = Date.now() + timer.remaining * 1000;
+    setBg((cur) => [...cur, { id: Date.now(), label: screen.step.title, endAt, duration: timer.duration, stepIndex: index, fired: false }]);
+    setTimer(null);
+    setConfirm(null);
+    setDir(1);
+    setIndex(index + 1);
+    setTimer(freshTimer(index + 1, screens[index + 1]));
+    setWhistles(0);
+  }, [timer, screen, index, screens, go]);
+
   const countWhistle = useCallback(() => {
     unlockAudio();
     if (!step?.whistles) return;
@@ -193,7 +255,7 @@ function Cook({ recipe }: { recipe: Recipe }) {
   }, [step, settings.voice]);
 
   useVoiceCommands(settings.listen, (c) => {
-    if (c === "next") go(1);
+    if (c === "next") requestNext();
     else if (c === "back") go(-1);
     else if (c === "repeat") sayStep(screen);
     else if (c === "timer" && timer) toggleTimer();
@@ -203,7 +265,7 @@ function Cook({ recipe }: { recipe: Recipe }) {
   // Keyboard: arrows and space, for tablets with keyboards and desktop testing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") go(1);
+      if (e.key === "ArrowRight") requestNext();
       if (e.key === "ArrowLeft") go(-1);
       if (e.key === " " && timer) {
         e.preventDefault();
@@ -212,7 +274,7 @@ function Cook({ recipe }: { recipe: Recipe }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [go, timer, toggleTimer]);
+  }, [go, requestNext, timer, toggleTimer]);
 
   // Swipe between steps.
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -224,7 +286,10 @@ function Cook({ recipe }: { recipe: Recipe }) {
     const dx = e.changedTouches[0].clientX - touch.current.x;
     const dy = e.changedTouches[0].clientY - touch.current.y;
     touch.current = null;
-    if (Math.abs(dx) > 70 && Math.abs(dy) < 50) go(dx < 0 ? 1 : -1);
+    if (Math.abs(dx) > 70 && Math.abs(dy) < 50) {
+      if (dx < 0) requestNext();
+      else go(-1);
+    }
   };
 
   // Which ingredients are already in, for the ingredients sheet.
@@ -288,23 +353,6 @@ function Cook({ recipe }: { recipe: Recipe }) {
           </button>
         </div>
 
-        {/* Background timers */}
-        {bg.length > 0 && (
-          <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto">
-            {bg.map((b) => (
-              <button
-                key={b.id}
-                onClick={() => setBg((cur) => cur.filter((x) => x.id !== b.id))}
-                aria-label={`Dismiss ${b.label} timer`}
-                className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-[12px] ${b.fired ? "bg-chilli text-paper" : "bg-ink text-paper"}`}
-              >
-                <Bell size={13} />
-                <span className="max-w-[140px] truncate">{b.label}</span>
-                <span className="font-mono tnum">{b.fired ? "Done" : clock(timeLeft(b, now))} ✕</span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Screen */}
@@ -342,7 +390,7 @@ function Cook({ recipe }: { recipe: Recipe }) {
           <ArrowLeft />
         </button>
         <button
-          onClick={() => (screen.type === "done" ? router.push("/") : go(1))}
+          onClick={() => (screen.type === "done" ? router.push("/") : requestNext())}
           className="press flex min-h-[72px] flex-1 items-center justify-between rounded-[22px] bg-ink px-6 text-paper"
         >
           <span className="text-left">
@@ -357,10 +405,40 @@ function Cook({ recipe }: { recipe: Recipe }) {
         </button>
       </div>
 
-      {toast && (
-        <div className="absolute inset-x-4 top-20 z-40 animate-rise rounded-2xl bg-chilli px-4 py-3 text-[14px] font-medium text-paper shadow-lg" role="status">
-          {toast}
-        </div>
+      <TimerDock
+        timers={bg}
+        now={now}
+        onGo={(t) => {
+          setDir(t.stepIndex < index ? -1 : 1);
+          setIndex(t.stepIndex);
+          setTimer(null);
+        }}
+        onAdd={(t) => setBg((cur) => cur.map((b) => (b.id === t.id ? { ...b, endAt: b.endAt + 60_000, duration: b.duration + 60 } : b)))}
+        onCancel={(t) => setBg((cur) => cur.filter((b) => b.id !== t.id))}
+      />
+
+      {confirm && step && (
+        <ConfirmSheet
+          confirm={confirm}
+          title={step.title}
+          onStay={() => setConfirm(null)}
+          onNext={() => go(1)}
+          onStartAndNext={startAndNext}
+        />
+      )}
+
+      {alerts.length > 0 && (
+        <TimeUpModal
+          alert={alerts[0]}
+          more={alerts.length - 1}
+          onDone={() => setAlerts((a) => a.slice(1))}
+          onMore={() => {
+            const a = alerts[0];
+            setAlerts((x) => x.slice(1));
+            if (a.current && timer) setTimer({ ...timer, fired: false, duration: 60, remaining: 60, endAt: Date.now() + 60_000 });
+            else setBg((cur) => [...cur, { id: Date.now(), label: a.label, endAt: Date.now() + 60_000, duration: 60, stepIndex: a.fromStep, fired: false }]);
+          }}
+        />
       )}
 
       {sheet && <IngredientSheet recipe={recipe} factor={factor} servings={servings} used={usedUpTo} onClose={() => setSheet(false)} />}

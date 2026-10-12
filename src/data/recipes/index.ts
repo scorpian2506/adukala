@@ -6,73 +6,129 @@ import alooMatar from "./aloo-matar";
 import alooParatha from "./aloo-paratha";
 import alooTikki from "./aloo-tikki";
 import appam from "./appam";
+import arachuvittaSambar from "./arachuvitta-sambar";
+import arisiUpma from "./arisi-upma";
+import avalUpma from "./aval-upma";
 import avial from "./avial";
 import bainganBharta from "./baingan-bharta";
 import bananaPancakes from "./banana-pancakes";
 import beansMezhukkupuratti from "./beans-mezhukkupuratti";
 import beansPoriyal from "./beans-poriyal";
+import beansThoran from "./beans-thoran";
 import beetrootPachadi from "./beetroot-pachadi";
+import beetrootPoriyal from "./beetroot-poriyal";
 import bhindiMasala from "./bhindi-masala";
+import bisiBeleBath from "./bisi-bele-bath";
+import boiledEggs from "./boiled-eggs";
+import breadOmelette from "./bread-omelette";
 import butterChicken from "./butter-chicken";
 import cabbagePoriyal from "./cabbage-poriyal";
 import cabbageThoran from "./cabbage-thoran";
+import carrotPoriyal from "./carrot-poriyal";
 import chanaMasala from "./chana-masala";
+import channaSundal from "./channa-sundal";
 import chapati from "./chapati";
+import chemmeenCurry from "./chemmeen-curry";
+import chenaMezhukkupuratti from "./chena-mezhukkupuratti";
 import chettinadChickenCurry from "./chettinad-chicken-curry";
 import chickenBiryani from "./chicken-biryani";
 import chickenCurry from "./chicken-curry";
 import chickenFriedRice from "./chicken-fried-rice";
+import chickenKuzhambu from "./chicken-kuzhambu";
 import chickenStew from "./chicken-stew";
 import chilliChicken from "./chilli-chicken";
 import chilliMushroom from "./chilli-mushroom";
 import chilliPaneer from "./chilli-paneer";
 import { choleMasala } from "./chole-masala";
+import coconutBurfi from "./coconut-burfi";
 import { coconutChutney } from "./coconut-chutney";
+import corianderChutney from "./coriander-chutney";
 import corianderRice from "./coriander-rice";
 import { curdRice } from "./curd-rice";
+import dalFry from "./dal-fry";
 import dalMakhani from "./dal-makhani";
 import { dalTadka } from "./dal-tadka";
 import eggBhurji from "./egg-bhurji";
 import eggBiryani from "./egg-biryani";
 import eggFriedRice from "./egg-fried-rice";
+import eggPodimas from "./egg-podimas";
+import elaAda from "./ela-ada";
 import ennaiKathirikaiKuzhambu from "./ennai-kathirikai-kuzhambu";
 import erissery from "./erissery";
+import filterCoffee from "./filter-coffee";
+import fishMolee from "./fish-molee";
 import gajarHalwa from "./gajar-halwa";
 import gobiManchurian from "./gobi-manchurian";
+import greenPeasMasala from "./green-peas-masala";
+import homemadeCurd from "./homemade-curd";
 import idiyappam from "./idiyappam";
+import idliPodi from "./idli-podi";
 import idli from "./idli";
+import injiChaya from "./inji-chaya";
 import injiCurry from "./inji-curry";
 import jeeraAloo from "./jeera-aloo";
 import { jeeraRice } from "./jeera-rice";
 import kadaiPaneer from "./kadai-paneer";
 import kadalaCurry from "./kadala-curry";
+import kadappa from "./kadappa";
+import kalan from "./kalan";
 import kappaPuzhukku from "./kappa-puzhukku";
 import karaChutney from "./kara-chutney";
+import kathirikaiPoriyal from "./kathirikai-poriyal";
+import keeraiKootu from "./keerai-kootu";
 import keeraiMasiyal from "./keerai-masiyal";
+import keralaChickenFry from "./kerala-chicken-fry";
 import keralaEggRoast from "./kerala-egg-roast";
 import keralaFishCurry from "./kerala-fish-curry";
+import keralaSambar from "./kerala-sambar";
+import kootuCurry from "./kootu-curry";
+import kuzhiPaniyaram from "./kuzhi-paniyaram";
+import lemonRasam from "./lemon-rasam";
 import { lemonRice } from "./lemon-rice";
 import { masalaChai } from "./masala-chai";
+import masalaDosa from "./masala-dosa";
+import masalaOmelette from "./masala-omelette";
 import matarPaneer from "./matar-paneer";
+import mattaRice from "./matta-rice";
 import meduVada from "./medu-vada";
+import meenKuzhambu from "./meen-kuzhambu";
+import meenVaruthathu from "./meen-varuthathu";
+import milaguRasam from "./milagu-rasam";
 import mintChutney from "./mint-chutney";
 import mixVeg from "./mix-veg";
 import moongDalKhichdi from "./moong-dal-khichdi";
 import morKuzhambu from "./mor-kuzhambu";
+import moruKachiyathu from "./moru-kachiyathu";
 import mushroomBiryani from "./mushroom-biryani";
 import mushroomMasala from "./mushroom-masala";
 import mushroomPepperFry from "./mushroom-pepper-fry";
+import muttaCurry from "./mutta-curry";
 import muttaiKuzhambu from "./muttai-kuzhambu";
+import muttonKuzhambu from "./mutton-kuzhambu";
 import nadanChickenCurry from "./nadan-chicken-curry";
+import neerMor from "./neer-mor";
+import neychoru from "./neychoru";
 import olan from "./olan";
+import onionPakoda from "./onion-pakoda";
+import onionUttapam from "./onion-uttapam";
+import paalKozhukattai from "./paal-kozhukattai";
 import paalPayasam from "./paal-payasam";
 import palakPaneer from "./palak-paneer";
 import paneerBhurji from "./paneer-bhurji";
 import { paneerButterMasala } from "./paneer-butter-masala";
+import parippuCurry from "./parippu-curry";
 import paruppuUsili from "./paruppu-usili";
+import paruppuVadai from "./paruppu-vadai";
+import pavakkaThoran from "./pavakka-thoran";
+import pazhamPori from "./pazham-pori";
+import peanutChutney from "./peanut-chutney";
 import pepperChickenFry from "./pepper-chicken-fry";
+import pidiKozhukattai from "./pidi-kozhukattai";
+import pineapplePachadi from "./pineapple-pachadi";
 import plainDosa from "./plain-dosa";
+import plainRice from "./plain-rice";
 import poonduRasam from "./poondu-rasam";
+import pooriMasala from "./poori-masala";
 import porichaKootu from "./poricha-kootu";
 import puliSadham from "./puli-sadham";
 import pulissery from "./pulissery";
@@ -82,20 +138,32 @@ import ragiDosa from "./ragi-dosa";
 import ragiPorridge from "./ragi-porridge";
 import { rajmaMasala } from "./rajma-masala";
 import ravaDosa from "./rava-dosa";
+import ravaIdli from "./rava-idli";
 import ravaKesari from "./rava-kesari";
+import ravaLadoo from "./rava-ladoo";
 import { ravaUpma } from "./rava-upma";
 import sakkaraiPongal from "./sakkarai-pongal";
+import sambarSadam from "./sambar-sadam";
 import { sambar } from "./sambar";
 import schezwanFriedRice from "./schezwan-fried-rice";
 import semiyaPayasam from "./semiya-payasam";
+import semiyaUpma from "./semiya-upma";
+import setDosa from "./set-dosa";
 import sweetCornSoup from "./sweet-corn-soup";
+import thayirVadai from "./thayir-vadai";
 import thengaiSadham from "./thengai-sadham";
+import tiffinSambar from "./tiffin-sambar";
 import tomatoChutney from "./tomato-chutney";
 import { tomatoRasam } from "./tomato-rasam";
 import tomatoRice from "./tomato-rice";
 import ulliTheeyal from "./ulli-theeyal";
+import unniyappam from "./unniyappam";
 import urulaiRoast from "./urulai-roast";
+import vadaCurry from "./vada-curry";
 import vathaKuzhambu from "./vatha-kuzhambu";
+import vazhakkaThoran from "./vazhakka-thoran";
+import vazhakkaiBajji from "./vazhakkai-bajji";
+import vazhakkaiPoriyal from "./vazhakkai-poriyal";
 import vegBiryani from "./veg-biryani";
 import vegCheeseSandwich from "./veg-cheese-sandwich";
 import vegFriedRice from "./veg-fried-rice";
@@ -106,6 +174,8 @@ import vegetableKurma from "./vegetable-kurma";
 import vegetableSoup from "./vegetable-soup";
 import vegetableStew from "./vegetable-stew";
 import { venPongal } from "./ven-pongal";
+import vendakkaiPoriyal from "./vendakkai-poriyal";
+import wheatDosa from "./wheat-dosa";
 
 export const SEED_RECIPES: Recipe[] = [
   adai,
@@ -114,73 +184,129 @@ export const SEED_RECIPES: Recipe[] = [
   alooParatha,
   alooTikki,
   appam,
+  arachuvittaSambar,
+  arisiUpma,
+  avalUpma,
   avial,
   bainganBharta,
   bananaPancakes,
   beansMezhukkupuratti,
   beansPoriyal,
+  beansThoran,
   beetrootPachadi,
+  beetrootPoriyal,
   bhindiMasala,
+  bisiBeleBath,
+  boiledEggs,
+  breadOmelette,
   butterChicken,
   cabbagePoriyal,
   cabbageThoran,
+  carrotPoriyal,
   chanaMasala,
+  channaSundal,
   chapati,
+  chemmeenCurry,
+  chenaMezhukkupuratti,
   chettinadChickenCurry,
   chickenBiryani,
   chickenCurry,
   chickenFriedRice,
+  chickenKuzhambu,
   chickenStew,
   chilliChicken,
   chilliMushroom,
   chilliPaneer,
   choleMasala,
+  coconutBurfi,
   coconutChutney,
+  corianderChutney,
   corianderRice,
   curdRice,
+  dalFry,
   dalMakhani,
   dalTadka,
   eggBhurji,
   eggBiryani,
   eggFriedRice,
+  eggPodimas,
+  elaAda,
   ennaiKathirikaiKuzhambu,
   erissery,
+  filterCoffee,
+  fishMolee,
   gajarHalwa,
   gobiManchurian,
+  greenPeasMasala,
+  homemadeCurd,
   idiyappam,
+  idliPodi,
   idli,
+  injiChaya,
   injiCurry,
   jeeraAloo,
   jeeraRice,
   kadaiPaneer,
   kadalaCurry,
+  kadappa,
+  kalan,
   kappaPuzhukku,
   karaChutney,
+  kathirikaiPoriyal,
+  keeraiKootu,
   keeraiMasiyal,
+  keralaChickenFry,
   keralaEggRoast,
   keralaFishCurry,
+  keralaSambar,
+  kootuCurry,
+  kuzhiPaniyaram,
+  lemonRasam,
   lemonRice,
   masalaChai,
+  masalaDosa,
+  masalaOmelette,
   matarPaneer,
+  mattaRice,
   meduVada,
+  meenKuzhambu,
+  meenVaruthathu,
+  milaguRasam,
   mintChutney,
   mixVeg,
   moongDalKhichdi,
   morKuzhambu,
+  moruKachiyathu,
   mushroomBiryani,
   mushroomMasala,
   mushroomPepperFry,
+  muttaCurry,
   muttaiKuzhambu,
+  muttonKuzhambu,
   nadanChickenCurry,
+  neerMor,
+  neychoru,
   olan,
+  onionPakoda,
+  onionUttapam,
+  paalKozhukattai,
   paalPayasam,
   palakPaneer,
   paneerBhurji,
   paneerButterMasala,
+  parippuCurry,
   paruppuUsili,
+  paruppuVadai,
+  pavakkaThoran,
+  pazhamPori,
+  peanutChutney,
   pepperChickenFry,
+  pidiKozhukattai,
+  pineapplePachadi,
   plainDosa,
+  plainRice,
   poonduRasam,
+  pooriMasala,
   porichaKootu,
   puliSadham,
   pulissery,
@@ -190,20 +316,32 @@ export const SEED_RECIPES: Recipe[] = [
   ragiPorridge,
   rajmaMasala,
   ravaDosa,
+  ravaIdli,
   ravaKesari,
+  ravaLadoo,
   ravaUpma,
   sakkaraiPongal,
+  sambarSadam,
   sambar,
   schezwanFriedRice,
   semiyaPayasam,
+  semiyaUpma,
+  setDosa,
   sweetCornSoup,
+  thayirVadai,
   thengaiSadham,
+  tiffinSambar,
   tomatoChutney,
   tomatoRasam,
   tomatoRice,
   ulliTheeyal,
+  unniyappam,
   urulaiRoast,
+  vadaCurry,
   vathaKuzhambu,
+  vazhakkaThoran,
+  vazhakkaiBajji,
+  vazhakkaiPoriyal,
   vegBiryani,
   vegCheeseSandwich,
   vegFriedRice,
@@ -214,4 +352,6 @@ export const SEED_RECIPES: Recipe[] = [
   vegetableSoup,
   vegetableStew,
   venPongal,
+  vendakkaiPoriyal,
+  wheatDosa,
 ];

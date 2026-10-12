@@ -139,10 +139,13 @@ export function findInLibrary(query: string, recipes: Recipe[] = SEED_RECIPES): 
     .replace(/\s+/g, " ")
     .trim();
   if (q.length < 3) return undefined;
-  return recipes.find((r) => {
-    const names = [r.name, r.native ?? ""].map((n) => n.toLowerCase());
-    return names.some((n) => n && (n === q || n.includes(q) || (q.includes(n) && n.length > 3)));
-  });
+  const names = (r: Recipe) => [r.name, r.native ?? ""].map((n) => n.toLowerCase()).filter(Boolean);
+  // Exact name first, then the shortest name that contains the query, then names inside the query.
+  return (
+    recipes.find((r) => names(r).some((n) => n === q)) ??
+    recipes.filter((r) => names(r).some((n) => n.includes(q))).sort((a, b) => a.name.length - b.name.length)[0] ??
+    recipes.filter((r) => names(r).some((n) => q.includes(n) && n.length > 3)).sort((a, b) => b.name.length - a.name.length)[0]
+  );
 }
 
 /** Offline understanding of simple tweak requests typed in the studio. */

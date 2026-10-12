@@ -187,6 +187,21 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
         </div>
       )}
 
+      {recipe.source?.refs?.length ? (
+        <div className="mx-5 mt-6 rounded-2xl border border-line-2 bg-card p-4">
+          <p className="eyebrow text-ink-3">Measurements checked against</p>
+          <ul className="mt-2 space-y-1.5">
+            {recipe.source.refs.slice(0, 4).map((r) => (
+              <li key={r.url}>
+                <a href={r.url} target="_blank" rel="noreferrer" className="text-[13px] text-ink underline decoration-line-2 underline-offset-4">
+                  {r.title || new URL(r.url).hostname.replace(/^www\./, "")}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <dl className="mx-5 mt-6 grid grid-cols-3 divide-x divide-line rounded-2xl border border-line">
         <Stat label="Total" value={`${totalMinutes(recipe)} min`} />
         <Stat label="Level" value={<Dots n={recipe.level} label="Level" />} />

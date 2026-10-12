@@ -342,31 +342,136 @@ export async function ping(ai: AIContext) {
   await ai.client.chat.completions.create({ model: ai.model, messages: [{ role: "user", content: "Reply with OK." }], max_tokens: 5 });
 }
 
+// ---------- Gemini: watch the video, then research published recipes ----------
+
+const GEMINI = "https://generativelanguage.googleapis.com/v1beta";
+
+export interface GeminiReply {
+  text: string;
+  sources: { url: string; title?: string }[];
+}
+
+type Part = { type: "text"; text: string } | { type: "video"; uri: string };
+
+/** Pull text + web citations out of an Interactions API response. */
+export function readInteraction(j: Record<string, unknown>): GeminiReply {
+  const sources: GeminiReply["sources"] = [];
+  let text = typeof j.output_text === "string" ? j.output_text : "";
+  const steps = Array.isArray(j.steps) ? (j.steps as Record<string, unknown>[]) : [];
+  const parts: string[] = [];
+  for (const st of steps) {
+    if (st.type !== "model_output" || !Array.isArray(st.content)) continue;
+    for (const c of st.content as Record<string, unknown>[]) {
+      if (typeof c.text === "string") parts.push(c.text);
+      for (const a of (Array.isArray(c.annotations) ? c.annotations : []) as Record<string, unknown>[]) {
+        if (a.type === "url_citation" && typeof a.url === "string") sources.push({ url: a.url, title: typeof a.title === "string" ? a.title : undefined });
+      }
+    }
+  }
+  if (!text) text = parts.join("\n");
+  return { text: text.trim(), sources: dedupeSources(sources) };
+}
+
+/** Same, for the older generateContent response. */
+export function readGenerateContent(j: Record<string, unknown>): GeminiReply {
+  const cand = (j.candidates as Record<string, unknown>[] | undefined)?.[0] ?? {};
+  const parts = ((cand.content as { parts?: { text?: string }[] } | undefined)?.parts ?? []).map((p) => p.text ?? "");
+  const chunks = ((cand.groundingMetadata as { groundingChunks?: { web?: { uri?: string; title?: string } }[] } | undefined)?.groundingChunks ?? [])
+    .map((c) => c.web)
+    .filter((w): w is { uri: string; title?: string } => !!w?.uri);
+  return { text: parts.join("").trim(), sources: dedupeSources(chunks.map((w) => ({ url: w.uri, title: w.title }))) };
+}
+
+function dedupeSources(s: GeminiReply["sources"]) {
+  const seen = new Set<string>();
+  return s.filter((x) => !seen.has(x.url) && seen.add(x.url)).slice(0, 8);
+}
+
+/** One Gemini call: the Interactions API first, falling back to generateContent. */
+export async function geminiCall(ai: AIContext, opts: { parts: Part[]; search?: boolean; system?: string; timeoutMs?: number }): Promise<GeminiReply | null> {
+  const headers = { "content-type": "application/json", "x-goog-api-key": ai.key };
+  const signal = () => AbortSignal.timeout(opts.timeoutMs ?? 150_000);
+  try {
+    const res = await fetch(`${GEMINI}/interactions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: ai.model,
+        input: opts.parts,
+        store: false,
+        ...(opts.system ? { system_instruction: opts.system } : {}),
+        ...(opts.search ? { tools: [{ type: "google_search" }] } : {}),
+      }),
+      signal: signal(),
+    });
+    if (res.ok) {
+      const out = readInteraction(await res.json());
+      if (out.text) return out;
+    } else if (res.status === 401 || res.status === 403) {
+      throw new AIError("Google rejected the Gemini key. Check it in Settings.", 401);
+    }
+  } catch (e) {
+    if (e instanceof AIError) throw e;
+  }
+  // Older endpoint, same request in its shape.
+  try {
+    const res = await fetch(`${GEMINI}/models/${encodeURIComponent(ai.model)}:generateContent`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        ...(opts.system ? { systemInstruction: { parts: [{ text: opts.system }] } } : {}),
+        contents: [{ parts: opts.parts.map((p) => (p.type === "video" ? { file_data: { file_uri: p.uri } } : { text: p.text })) }],
+        ...(opts.search ? { tools: [{ google_search: {} }] } : {}),
+      }),
+      signal: signal(),
+    });
+    if (!res.ok) return null;
+    const out = readGenerateContent(await res.json());
+    return out.text ? out : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Gemini can watch a public YouTube video. When a video has no written recipe and
- * no captions, ask it to write down what the cook shows and says.
+ * Gemini can watch a public YouTube video. When a video has no written recipe,
+ * ask it to write down what the cook shows and says — effectively a transcript.
  */
 export async function geminiWatch(ai: AIContext, videoUrl: string): Promise<string | null> {
   if (ai.provider.id !== "gemini") return null;
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(ai.model)}:generateContent`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": ai.key },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            { file_data: { file_uri: videoUrl } },
-            {
-              text: "Watch this cooking video. Write down every ingredient with the exact quantity shown on screen or said (say 'not stated' if not), then every step in order with times, flame levels, pressure cooker whistles and visual cues. Plain text, no commentary.",
-            },
-          ],
-        },
-      ],
-    }),
-    signal: AbortSignal.timeout(120_000),
+  const out = await geminiCall(ai, {
+    parts: [
+      {
+        type: "text",
+        text: "Watch this cooking video. Write down every ingredient with the exact quantity shown on screen or said (write 'not stated' if not), then every step in order with times, flame levels, pressure cooker whistles and visual cues. Plain text, no commentary.",
+      },
+      { type: "video", uri: videoUrl },
+    ],
   });
-  if (!res.ok) return null;
-  const j = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-  const text = j.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
-  return text.trim() ? text.slice(0, 16000) : null;
+  return out ? out.text.slice(0, 16000) : null;
+}
+
+/**
+ * Search the web (Google) for published recipes of this dish, compare them with
+ * what the video does, and write the best one out with exact measurements.
+ */
+export async function geminiResearch(ai: AIContext, dish: string, notes: string | null): Promise<GeminiReply | null> {
+  if (ai.provider.id !== "gemini") return null;
+  const prompt = [
+    `Dish: ${dish}`,
+    notes ? `What the cook does in the video:\n${notes.slice(0, 8000)}` : "",
+    `Search the web for several well-rated, published home recipes of this exact dish and style (prefer Indian recipe sites such as Hebbar's Kitchen, Swasthi's Recipes, Archana's Kitchen, Jeyashri's Kitchen, Mariam's Kitchen, Veena's Curryworld, Ranveer Brar). Pick the one that best matches the video's method and region, and use it (with measurements cross-checked against the others) to write ONE recipe.`,
+    `Write it exactly in this plain-text format:
+NAME: <dish name>
+SERVES: <number>
+INGREDIENTS:
+<one per line: quantity unit ingredient, notes>  (use g, ml, tsp, tbsp, cup; never "to taste")
+METHOD:
+1. <one short instruction per line, with times and flame levels>
+SOURCES:
+<urls you used, best match first>`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return geminiCall(ai, { parts: [{ type: "text", text: prompt }], search: true });
 }

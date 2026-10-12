@@ -96,7 +96,7 @@ export interface Recipe {
   prep: Step[];
   cook: Step[];
   serveWith?: string;
-  source?: { kind: "seed" | "youtube" | "ai"; url?: string; title?: string; channel?: string };
+  source?: { kind: "seed" | "youtube" | "ai"; url?: string; title?: string; channel?: string; refs?: { url: string; title?: string }[] };
   variant?: string[]; // customisations applied, e.g. ["Low oil", "Kid friendly"]
   method?: "rules" | "ai"; // how an imported recipe was converted
   warnings?: string[]; // things the cook should double-check

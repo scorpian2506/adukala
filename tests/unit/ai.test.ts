@@ -14,7 +14,7 @@ describe("provider selection", () => {
   it("uses the preset base URL and default model", () => {
     const ai = clientFrom(req({ "x-ai-provider": "gemini", "x-ai-key": "k" }));
     expect(ai.client.baseURL).toBe("https://generativelanguage.googleapis.com/v1beta/openai/");
-    expect(ai.model).toBe("gemini-2.5-flash");
+    expect(ai.model).toBe("gemini-3.8-flash");
     expect(clientFrom(req({ "x-ai-provider": "groq", "x-ai-key": "k", "x-ai-model": "llama-3.3-70b-versatile" })).model).toBe("llama-3.3-70b-versatile");
   });
 });

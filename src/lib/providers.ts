@@ -23,10 +23,11 @@ export const PROVIDERS: Record<ProviderId, Provider> = {
   gemini: {
     id: "gemini",
     name: "Google Gemini",
-    tagline: "Can watch the YouTube video itself when there's no written recipe.",
+    tagline: "Watches the YouTube video, then searches the web for the best matching recipe. Recommended.",
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-    defaultModel: "gemini-2.5-flash",
-    models: ["gemini-2.5-flash", "gemini-2.5-flash-lite"],
+    // gemini-2.5 models are closed to new users (Oct 2026); 3.x Flash is the current free-tier family.
+    defaultModel: "gemini-3.8-flash",
+    models: ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"],
     keyUrl: "https://aistudio.google.com/apikey",
     free: true,
     api: "chat",

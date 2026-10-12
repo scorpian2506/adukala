@@ -64,6 +64,6 @@ test("star and pin a recipe; it shows in Saved and pinned on Home", async ({ pag
 test("star from a list card", async ({ page }) => {
   await setStorage(page, {});
   await page.goto("/search?q=idli");
-  await page.getByRole("button", { name: "Star Idli" }).click();
-  await expect(page.getByRole("button", { name: "Unstar Idli" })).toBeVisible();
+  await page.getByRole("button", { name: "Star Idli", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Unstar Idli", exact: true })).toBeVisible();
 });

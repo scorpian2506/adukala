@@ -204,7 +204,7 @@ export function StudioView() {
       const note: Msg = {
         role: "assistant",
         content:
-          "This video doesn’t link a written recipe, so I can’t measure it exactly without AI. Here are videos for the same dish from cooks who publish their measurements — or connect a free AI that can watch this one.",
+          "This video doesn’t link a written recipe, so I can’t measure it exactly on my own. Here are videos for the same dish from cooks who publish their measurements — or add a free Gemini key in Settings: it watches this video and finds the best matching recipe online.",
       };
       await searchDish([...withVideo, note], cleanName(v.title), v.id);
     } catch (e) {
@@ -420,7 +420,13 @@ export function StudioView() {
             <CookingLoader
               inline
               title={recipe ? "Updating your recipe" : "Writing your recipe"}
-              lines={busy === "convert" ? ["Measuring every ingredient", "Splitting into small steps"] : ["Reading the method", "Checking measurements", "Converting everything to grams and spoons", "Splitting it into tiny steps", "Adding timers and cues"]}
+              lines={
+                busy === "convert"
+                  ? ["Measuring every ingredient", "Splitting into small steps"]
+                  : settings.provider === "gemini" && !video?.recipe
+                    ? ["Watching the video with Gemini", "Searching published recipes online", "Picking the best match", "Converting everything to grams and spoons", "Splitting it into tiny steps"]
+                    : ["Reading the method", "Checking measurements", "Converting everything to grams and spoons", "Splitting it into tiny steps", "Adding timers and cues"]
+              }
             />
           </div>
         )}

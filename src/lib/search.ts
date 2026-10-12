@@ -126,7 +126,7 @@ function scoreToken(q: string, idx: Indexed): number {
   return best;
 }
 
-export type Facet = "tamil" | "kerala" | "north" | "indochinese" | "kids" | "veg" | "nonveg" | "quick" | "biryani" | "breakfast" | "dessert";
+export type Facet = "tamil" | "kerala" | "north" | "indochinese" | "kids" | "veg" | "nonveg" | "quick" | "biryani" | "breakfast" | "tiffin" | "dessert";
 
 export const FACETS: { id: Facet; label: string }[] = [
   { id: "tamil", label: "Tamil" },
@@ -135,6 +135,7 @@ export const FACETS: { id: Facet; label: string }[] = [
   { id: "indochinese", label: "Indo-Chinese" },
   { id: "biryani", label: "Biryani" },
   { id: "kids", label: "Kids" },
+  { id: "tiffin", label: "Tiffin" },
   { id: "breakfast", label: "Breakfast" },
   { id: "dessert", label: "Sweets" },
   { id: "quick", label: "Under 30 min" },
@@ -164,6 +165,9 @@ export function matchesFacet(r: Recipe, f: Facet): boolean {
       return /biryani/.test(normalize(`${r.name} ${(r.tags ?? []).join(" ")}`));
     case "breakfast":
       return r.course === "breakfast";
+    case "tiffin":
+      // Tiffin = South Indian breakfast/evening dishes and the chutneys and sambars served with them.
+      return r.region === "south" && (r.course === "breakfast" || (r.tags ?? []).some((t) => /tiffin/i.test(t)));
     case "dessert":
       return r.course === "dessert";
   }
@@ -194,7 +198,14 @@ export function searchRecipes(recipes: Recipe[], query: string, facets: Facet[] 
       }
       total += s;
     }
-    if (ok) scored.push([r, total]);
+    if (!ok) continue;
+    // Exact dish name beats a longer name containing it ("Sambar" before "Arachuvitta Sambar").
+    const name = normalize(r.name);
+    const q = qs.join(" ");
+    if (name === q) total += 20;
+    else if (name.startsWith(q)) total += 6;
+    total -= name.split(" ").length * 0.1;
+    scored.push([r, total]);
   }
   return scored.sort((a, b) => b[1] - a[1]).map(([r]) => r);
 }
