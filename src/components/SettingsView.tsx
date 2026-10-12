@@ -1,24 +1,21 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { aiHeaders, aiReady, modelFor, saveKey, saveModel, saveSettings, useSettings } from "@/lib/store";
 import { PROVIDERS, PROVIDER_ORDER, type ProviderId } from "@/lib/providers";
 import { speechRecognitionSupported, speak, unlockAudio } from "@/lib/kitchen";
 import { useHydrated } from "@/lib/useRecipe";
-import { ArrowLeft, Check, Eye } from "./Icons";
+import { Check, Eye } from "./Icons";
+import { TopBar } from "./Nav";
 
 export function SettingsView() {
-  const router = useRouter();
   const settings = useSettings();
   const hydrated = useHydrated();
 
   return (
     <main className="app-min-h pb-16">
-      <header className="safe-t flex items-center gap-3 px-4 pb-2">
-        <button onClick={() => router.back()} className="press grid h-10 w-10 place-items-center rounded-full border border-line-2" aria-label="Back">
-          <ArrowLeft />
-        </button>
+      <header className="px-4 pb-2">
+        <TopBar />
       </header>
       <div className="px-5">
         <h1 className="font-display text-[48px] leading-none">Settings</h1>

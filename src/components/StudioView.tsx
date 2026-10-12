@@ -12,7 +12,8 @@ import { PROVIDERS } from "@/lib/providers";
 import { isYouTubeUrl, TRUSTED_CHANNELS, type SearchResult } from "@/lib/yt-parse";
 import type { ScrapedRecipe } from "@/lib/scrape";
 import type { Recipe } from "@/lib/types";
-import { ArrowLeft, ArrowRight, Check, LinkIcon, Send, YouTube } from "./Icons";
+import { ArrowRight, Check, LinkIcon, Send, YouTube } from "./Icons";
+import { TopBar } from "./Nav";
 import { CookingLoader } from "./CookingLoader";
 import { DishArt } from "./DishArt";
 import { HUE_BG } from "./RecipeCard";
@@ -282,29 +283,30 @@ export function StudioView() {
 
   return (
     <main className="app-h relative flex flex-col">
-      <header className="safe-t z-10 flex items-center justify-between border-b border-line bg-paper/90 px-4 pb-3 backdrop-blur">
-        <button onClick={() => router.back()} className="press grid h-10 w-10 place-items-center rounded-full border border-line-2" aria-label="Back">
-          <ArrowLeft />
-        </button>
-        <div className="text-center">
-          <p className="font-display text-[22px] leading-none">Recipe studio</p>
-          <p className="eyebrow mt-1 text-ink-3">{hydrated ? (ai && settings.provider !== "none" ? `AI · ${PROVIDERS[settings.provider].name}` : "Free converter") : " "}</p>
-        </div>
-        {msgs.length ? (
-          <button
-            onClick={() => {
-              setMsgs([]);
-              setVideo(null);
-              setRecipe(null);
-              setServings(null);
-            }}
-            className="press rounded-full border border-line-2 px-3 py-2 text-[12px]"
-          >
-            New
-          </button>
-        ) : (
-          <span className="w-10" />
-        )}
+      <header className="z-10 border-b border-line bg-paper/90 px-4 pb-3 backdrop-blur">
+        <TopBar
+          title={
+            <>
+              <p className="font-display text-[22px] leading-none">Recipe studio</p>
+              <p className="eyebrow mt-1 text-ink-3">{hydrated ? (ai && settings.provider !== "none" ? `AI · ${PROVIDERS[settings.provider].name}` : "Free converter") : "\u00a0"}</p>
+            </>
+          }
+          right={
+            msgs.length ? (
+              <button
+                onClick={() => {
+                  setMsgs([]);
+                  setVideo(null);
+                  setRecipe(null);
+                  setServings(null);
+                }}
+                className="press rounded-full border border-line-2 px-3 py-2 text-[12px]"
+              >
+                New
+              </button>
+            ) : null
+          }
+        />
       </header>
 
       <div className="no-scrollbar flex-1 overflow-y-auto px-4 pb-4">

@@ -5,6 +5,8 @@ export const lemonRice: Recipe = {
   name: "Lemon Rice",
   native: "Elumichai sadam",
   region: "south",
+  cuisine: "tamil",
+  kidFriendly: true,
   course: "rice",
   blurb: "Bright yellow rice tossed in a crunchy peanut and curry leaf tempering, sharp with fresh lemon.",
   servings: 3,

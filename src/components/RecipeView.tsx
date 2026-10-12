@@ -11,13 +11,14 @@ import {
   stepNumberAt,
   type CustomisationId,
 } from "@/lib/recipes";
-import { aiHeaders, aiReady, deleteRecipe, getProgress, saveProgress, saveRecipe, useSettings } from "@/lib/store";
+import { aiHeaders, aiReady, deleteRecipe, getProgress, isMarked, saveProgress, saveRecipe, toggleMark, useMarks, useSettings } from "@/lib/store";
 import { useRecipe } from "@/lib/useRecipe";
 import { EQUIPMENT_LABEL, KIND_LABEL, REGION_LABEL, formatQty, totalMinutes } from "@/lib/format";
 import type { Ingredient, Recipe } from "@/lib/types";
 import { DishArt } from "./DishArt";
 import { Dots, HUE_BG } from "./RecipeCard";
-import { ArrowLeft, ArrowRight, Check, Minus, Plus, Trash, YouTube } from "./Icons";
+import { ArrowRight, Check, Minus, Plus, Pin, Star, Trash, YouTube } from "./Icons";
+import { TopBar } from "./Nav";
 import { Loading, NotFound } from "./States";
 import { CookingLoader } from "./CookingLoader";
 
@@ -39,6 +40,9 @@ export function RecipeView({ id }: { id: string }) {
 function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const router = useRouter();
   const settings = useSettings();
+  const marks = useMarks();
+  const starred = isMarked(marks, "star", recipe.id);
+  const pinned = isMarked(marks, "pin", recipe.id);
   const [servings, setServings] = useState(() => getProgress(recipe.id)?.servings ?? recipe.servings);
   const [mods, setMods] = useState<CustomisationId[]>([]);
   const [busy, setBusy] = useState(false);
@@ -113,28 +117,47 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   return (
     <main className="app-min-h relative pb-36">
       <div className={`relative ${HUE_BG[recipe.hue]} rounded-b-[36px] px-5 pb-8`}>
-        <div className="safe-t flex items-center justify-between">
-          <button onClick={() => router.back()} className="press grid h-10 w-10 place-items-center rounded-full bg-card/70" aria-label="Back">
-            <ArrowLeft />
-          </button>
-          <p className="eyebrow text-ink/60">{REGION_LABEL[recipe.region]}</p>
-          {isSaved ? (
-            <button
-              onClick={() => {
-                if (confirm("Delete this recipe from your phone?")) {
-                  deleteRecipe(recipe.id);
-                  router.replace("/");
-                }
-              }}
-              className="press grid h-10 w-10 place-items-center rounded-full bg-card/70"
-              aria-label="Delete recipe"
-            >
-              <Trash size={18} />
-            </button>
-          ) : (
-            <span className="w-10" />
-          )}
-        </div>
+        <TopBar
+          tone="glass"
+          right={
+            <>
+              <button
+                onClick={() => toggleMark("star", recipe.id)}
+                aria-pressed={starred}
+                aria-label={starred ? "Unstar" : "Star"}
+                className={`press grid h-10 w-10 place-items-center rounded-full bg-card/70 ${starred ? "text-turmeric" : ""}`}
+              >
+                <Star size={19} filled={starred} />
+              </button>
+              <button
+                onClick={() => toggleMark("pin", recipe.id)}
+                aria-pressed={pinned}
+                aria-label={pinned ? "Unpin from Home" : "Pin to Home"}
+                className={`press grid h-10 w-10 place-items-center rounded-full bg-card/70 ${pinned ? "text-chilli" : ""}`}
+              >
+                <Pin size={19} filled={pinned} />
+              </button>
+              {isSaved && (
+                <button
+                  onClick={() => {
+                    if (confirm("Delete this recipe?")) {
+                      deleteRecipe(recipe.id);
+                      router.replace("/");
+                    }
+                  }}
+                  className="press grid h-10 w-10 place-items-center rounded-full bg-card/70"
+                  aria-label="Delete recipe"
+                >
+                  <Trash size={18} />
+                </button>
+              )}
+            </>
+          }
+        />
+        <p className="eyebrow mt-3 text-center text-ink/60">
+          {recipe.cuisine === "kerala" ? "Kerala" : recipe.cuisine === "tamil" ? "Tamil Nadu" : REGION_LABEL[recipe.region]}
+          {recipe.kidFriendly ? " · Kid friendly" : ""}
+        </p>
         <div className="mt-2 flex justify-center">
           <DishArt recipe={recipe} className="h-[190px] w-[190px] animate-rise" />
         </div>

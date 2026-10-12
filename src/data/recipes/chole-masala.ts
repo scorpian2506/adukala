@@ -5,6 +5,7 @@ export const choleMasala: Recipe = {
   name: "Chole Masala",
   native: "Chole",
   region: "north",
+  cuisine: "punjabi",
   course: "main",
   blurb: "Tender chickpeas in a dark, tangy, well-spiced onion-tomato gravy.",
   servings: 4,

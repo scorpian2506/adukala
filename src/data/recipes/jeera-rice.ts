@@ -5,6 +5,8 @@ export const jeeraRice: Recipe = {
   name: "Jeera Rice",
   native: "Jeera chawal",
   region: "north",
+  cuisine: "north",
+  kidFriendly: true,
   course: "rice",
   blurb: "Fluffy, separate basmati grains toasted in ghee with plenty of cumin.",
   servings: 3,

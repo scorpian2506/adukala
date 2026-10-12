@@ -156,7 +156,7 @@ export const KIND_LABEL: Record<StepKind, string> = {
   note: "Note",
 };
 
-export const REGION_LABEL = { north: "North Indian", south: "South Indian" } as const;
+export const REGION_LABEL = { north: "North Indian", south: "South Indian", indo_chinese: "Indo-Chinese" } as const;
 
 export function scaleFactor(recipe: Recipe, servings: number) {
   return servings / recipe.servings;

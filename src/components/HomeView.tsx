@@ -4,31 +4,36 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { SEED_RECIPES, flattenSteps, stepNumberAt } from "@/lib/recipes";
-import { aiReady, handoff, useProgressMap, useSavedRecipes, useSettings } from "@/lib/store";
+import { matchesFacet, type Facet } from "@/lib/search";
+import { aiReady, handoff, markedIds, useMarks, useProgressMap, useSavedRecipes, useSettings } from "@/lib/store";
 import type { Recipe } from "@/lib/types";
 import { Wordmark } from "./Wordmark";
 import { RecipeCard, HUE_BG } from "./RecipeCard";
 import { DishArt } from "./DishArt";
-import { ArrowRight, Gear, YouTube, ChevronRight } from "./Icons";
+import { ArrowRight, Gear, YouTube, ChevronRight, SearchIcon, Pin } from "./Icons";
+import { BottomNav } from "./Nav";
 import { StepArt } from "./StepArt";
 
-const COURSES: { id: Recipe["course"] | "all"; label: string }[] = [
-  { id: "all", label: "Everything" },
-  { id: "dal", label: "Dal" },
-  { id: "rice", label: "Rice" },
-  { id: "main", label: "Curries" },
-  { id: "breakfast", label: "Breakfast" },
-  { id: "side", label: "Sides" },
-  { id: "drink", label: "Drinks" },
+const CATEGORIES: { id: Facet; label: string; hue: Recipe["hue"] }[] = [
+  { id: "tamil", label: "Tamil", hue: "tamarind" },
+  { id: "kerala", label: "Kerala", hue: "coconut" },
+  { id: "north", label: "North Indian", hue: "chilli" },
+  { id: "biryani", label: "Biryani", hue: "turmeric" },
+  { id: "indochinese", label: "Indo-Chinese", hue: "chilli" },
+  { id: "kids", label: "Kids' meals", hue: "leaf" },
+  { id: "breakfast", label: "Breakfast", hue: "turmeric" },
+  { id: "dessert", label: "Sweets", hue: "coconut" },
 ];
+
+// The first dishes most homes cook; shown on Home before "See all".
+const EVERYDAY = ["sambar", "dal-tadka", "idli", "plain-dosa", "chicken-biryani", "paneer-butter-masala", "tomato-rasam", "avial", "chana-masala", "veg-fried-rice", "curd-rice", "kerala-fish-curry"];
 
 export function HomeView() {
   const router = useRouter();
   const saved = useSavedRecipes();
   const progress = useProgressMap();
   const settings = useSettings();
-  const [region, setRegion] = useState<"all" | "north" | "south">("all");
-  const [course, setCourse] = useState<Recipe["course"] | "all">("all");
+  const marks = useMarks();
   const [link, setLink] = useState("");
 
   const all = useMemo(() => [...saved, ...SEED_RECIPES], [saved]);
@@ -41,10 +46,10 @@ export function HomeView() {
     return { recipe, step: stepNumberAt(recipe, latest.index), total: flattenSteps(recipe).length };
   }, [progress, all]);
 
-  const list = SEED_RECIPES.filter(
-    (r) => (region === "all" || r.region === region) && (course === "all" || r.course === course),
-  );
-  const courses = COURSES.filter((c) => c.id === "all" || SEED_RECIPES.some((r) => r.course === c.id));
+  const byId = useMemo(() => new Map(all.map((r) => [r.id, r])), [all]);
+  const pinned = markedIds(marks, "pin").map((id) => byId.get(id)).filter((r): r is Recipe => !!r);
+  const everyday = [...EVERYDAY.map((id) => byId.get(id)).filter((r): r is Recipe => !!r), ...SEED_RECIPES.filter((r) => !EVERYDAY.includes(r.id))].slice(0, 10);
+  const categories = CATEGORIES.map((c) => ({ ...c, count: SEED_RECIPES.filter((r) => matchesFacet(r, c.id)).length })).filter((c) => c.count > 0);
 
   function submitLink(e: React.FormEvent) {
     e.preventDefault();
@@ -63,7 +68,7 @@ export function HomeView() {
   }
 
   return (
-    <main className="app-min-h relative pb-16">
+    <main className="app-min-h relative pb-32">
       <header className="safe-t sticky top-0 z-20 flex items-center justify-between bg-paper/85 px-5 pb-3 backdrop-blur-md">
         <Wordmark className="text-[30px]" />
         <Link
@@ -86,6 +91,22 @@ export function HomeView() {
         <p className="animate-rise mt-4 max-w-[330px] text-[15px] leading-relaxed text-ink-2 [animation-delay:120ms]">
           Every gram measured. Every stir timed. One step on screen until you tap <strong className="font-semibold text-ink">Next</strong>.
         </p>
+      </section>
+
+      <section className="px-4 pt-6">
+        <Link href="/search" className="press flex items-center gap-3 rounded-2xl border border-line-2 bg-card px-4 py-3.5 text-ink-3">
+          <SearchIcon size={20} />
+          <span className="flex-1 whitespace-nowrap text-[15px]">Search {SEED_RECIPES.length} recipes</span>
+          <span className="eyebrow hidden min-[380px]:inline">Biryani · Kids</span>
+        </Link>
+        <div className="mt-4 grid grid-cols-4 gap-2">
+          {categories.map((c) => (
+            <Link key={c.id} href={`/search?f=${c.id}`} className={`press flex aspect-square flex-col justify-between rounded-[18px] p-2.5 ${HUE_BG[c.hue]}`}>
+              <span className="text-[12px] font-semibold leading-tight text-ink">{c.label}</span>
+              <span className="font-display text-[22px] leading-none text-ink/70 tnum">{c.count}</span>
+            </Link>
+          ))}
+        </div>
       </section>
 
       {/* YouTube import — the main way in */}
@@ -149,6 +170,29 @@ export function HomeView() {
         </section>
       )}
 
+      {pinned.length > 0 && (
+        <section className="pt-10">
+          <div className="flex items-baseline justify-between px-5">
+            <h2 className="font-display flex items-center gap-2 text-[30px] leading-none">
+              <Pin size={20} filled className="text-chilli" /> Pinned
+            </h2>
+            <Link href="/saved" className="text-[13px] text-ink-2 underline underline-offset-4">
+              All saved
+            </Link>
+          </div>
+          <div className="no-scrollbar mt-4 flex snap-x gap-3 overflow-x-auto px-5 pb-1">
+            {pinned.map((r) => (
+              <Link key={r.id} href={`/recipe/${r.id}`} className="press w-[150px] shrink-0 snap-start rounded-[22px] border border-line bg-card p-3">
+                <div className={`grid h-[96px] place-items-center rounded-2xl ${HUE_BG[r.hue]}`}>
+                  <DishArt recipe={r} className="h-[76px] w-[76px]" />
+                </div>
+                <p className="font-display mt-2 line-clamp-2 text-[19px] leading-[1.05]">{r.name}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {saved.length > 0 && (
         <section className="pt-10">
           <div className="flex items-baseline justify-between px-5">
@@ -177,39 +221,20 @@ export function HomeView() {
 
       <section className="pt-10">
         <div className="flex items-baseline justify-between px-5">
-          <h2 className="font-display text-[30px] leading-none">The library</h2>
-          <span className="eyebrow text-ink-3 tnum">{list.length} dishes</span>
+          <h2 className="font-display text-[30px] leading-none">Everyday favourites</h2>
+          <Link href="/search" className="text-[13px] text-ink-2 underline underline-offset-4">
+            See all {SEED_RECIPES.length}
+          </Link>
         </div>
-
-        <div className="mx-5 mt-4 grid grid-cols-3 rounded-full border border-line-2 p-1">
-          {(["all", "north", "south"] as const).map((r) => (
-            <button
-              key={r}
-              onClick={() => setRegion(r)}
-              className={`press rounded-full py-2 text-[13px] font-medium ${region === r ? "bg-ink text-paper" : "text-ink-2"}`}
-            >
-              {r === "all" ? "All" : r === "north" ? "North" : "South"}
-            </button>
-          ))}
-        </div>
-
-        <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-5">
-          {courses.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setCourse(c.id)}
-              className={`press shrink-0 rounded-full border px-3.5 py-1.5 text-[13px] ${course === c.id ? "border-ink bg-ink/5 text-ink" : "border-line text-ink-2"}`}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-
         <div className="mt-3 px-5">
-          {list.map((r, i) => (
+          {everyday.map((r, i) => (
             <RecipeCard key={r.id} recipe={r} index={i} />
           ))}
-          {list.length === 0 && <p className="py-10 text-center text-ink-3">Nothing here yet. Try another filter.</p>}
+        </div>
+        <div className="px-5 pt-2">
+          <Link href="/search" className="press flex w-full items-center justify-center gap-2 rounded-2xl border border-line-2 py-3.5 text-[14px] font-medium">
+            Browse all {SEED_RECIPES.length} recipes <ArrowRight size={16} />
+          </Link>
         </div>
       </section>
 
@@ -238,6 +263,7 @@ export function HomeView() {
           <em>Adukala</em> is Malayalam for kitchen. Made for people who&rsquo;ve never cooked, and the people who feed them.
         </p>
       </footer>
+      <BottomNav />
     </main>
   );
 }

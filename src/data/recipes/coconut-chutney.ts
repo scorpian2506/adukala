@@ -5,6 +5,7 @@ export const coconutChutney: Recipe = {
   name: "Coconut Chutney",
   native: "Thengai chutney",
   region: "south",
+  cuisine: "tamil",
   course: "side",
   blurb: "Fresh coconut ground with green chilli and roasted gram, topped with crackling mustard.",
   servings: 3,

@@ -5,6 +5,8 @@ export const ravaUpma: Recipe = {
   name: "Rava Upma",
   native: "Uppittu",
   region: "south",
+  cuisine: "karnataka",
+  kidFriendly: true,
   course: "breakfast",
   blurb: "Soft, savoury semolina cooked with onion, ginger and curry leaves, finished with ghee.",
   servings: 3,

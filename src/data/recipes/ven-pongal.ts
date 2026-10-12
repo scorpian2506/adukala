@@ -5,6 +5,8 @@ export const venPongal: Recipe = {
   name: "Ven Pongal",
   native: "Ven pongal",
   region: "south",
+  cuisine: "tamil",
+  kidFriendly: true,
   course: "breakfast",
   blurb: "Soft, mushy rice and moong dal, warm with black pepper, ginger and plenty of ghee.",
   servings: 3,

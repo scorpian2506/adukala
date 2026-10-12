@@ -5,6 +5,7 @@ export const tomatoRasam: Recipe = {
   name: "Tomato Rasam",
   native: "Thakkali rasam",
   region: "south",
+  cuisine: "tamil",
   course: "side",
   blurb: "A thin, peppery tomato and tamarind broth to pour over rice or sip hot.",
   servings: 3,

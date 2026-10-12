@@ -5,6 +5,7 @@ export const paneerButterMasala: Recipe = {
   name: "Paneer Butter Masala",
   native: "Paneer makhani",
   region: "north",
+  cuisine: "punjabi",
   course: "main",
   blurb: "Soft paneer cubes in a smooth, mildly sweet tomato and cashew gravy finished with butter and cream.",
   servings: 3,

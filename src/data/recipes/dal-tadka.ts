@@ -5,6 +5,7 @@ export const dalTadka: Recipe = {
   name: "Dal Tadka",
   native: "Tadke wali dal",
   region: "north",
+  cuisine: "north",
   course: "dal",
   blurb: "Soft yellow lentils finished with a sizzle of garlic, cumin and red chilli in ghee.",
   servings: 3,

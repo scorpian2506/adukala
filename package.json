@@ -13,9 +13,12 @@
     "test:live": "playwright test --project=live",
     "validate": "tsx scripts/validate-recipes.ts",
     "check": "tsc --noEmit && eslint && vitest run && tsx scripts/validate-recipes.ts",
-    "test:batch": "tsx scripts/batch-convert.mts"
+    "test:batch": "tsx scripts/batch-convert.mts",
+    "gen:recipes": "node scripts/gen-recipe-index.mjs"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.9",
+    "@neondatabase/serverless": "^1.2.0",
     "next": "16.4.0",
     "openai": "^7.32.0",
     "parse-ingredient": "^3.0.0",

@@ -5,6 +5,8 @@ export const curdRice: Recipe = {
   name: "Curd Rice",
   native: "Thayir sadam",
   region: "south",
+  cuisine: "tamil",
+  kidFriendly: true,
   course: "rice",
   blurb: "Soft rice mashed into cool curd and topped with a crackling mustard and curry leaf tempering.",
   servings: 2,

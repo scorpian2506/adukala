@@ -21,11 +21,13 @@ function addedTotal(r: Recipe, id: string) {
 }
 
 describe("seed library", () => {
-  it("has 14 recipes with unique ids across North and South", () => {
-    expect(SEED_RECIPES).toHaveLength(14);
-    expect(new Set(SEED_RECIPES.map((r) => r.id)).size).toBe(14);
-    expect(SEED_RECIPES.filter((r) => r.region === "north").length).toBeGreaterThan(4);
-    expect(SEED_RECIPES.filter((r) => r.region === "south").length).toBeGreaterThan(4);
+  it("has a large library with unique ids across every cuisine", () => {
+    expect(SEED_RECIPES.length).toBeGreaterThanOrEqual(100);
+    expect(new Set(SEED_RECIPES.map((r) => r.id)).size).toBe(SEED_RECIPES.length);
+    for (const c of ["tamil", "kerala", "indo_chinese"] as const) expect(SEED_RECIPES.filter((r) => r.cuisine === c).length, c).toBeGreaterThan(8);
+    expect(SEED_RECIPES.filter((r) => r.region === "north").length).toBeGreaterThan(20);
+    expect(SEED_RECIPES.filter((r) => /biryani/.test(r.id)).length).toBeGreaterThanOrEqual(4);
+    expect(SEED_RECIPES.filter((r) => r.kidFriendly).length).toBeGreaterThan(20);
   });
   it.each(SEED_RECIPES.map((r) => [r.id, r] as const))("%s passes every quality rule", (_, r) => {
     expect(validateRecipe(r, { seed: true }).filter((i) => i.level === "error")).toEqual([]);
@@ -97,7 +99,8 @@ describe("studio helpers", () => {
     expect(findInLibrary("I want to make sambar")?.id).toBe("sambar");
     expect(findInLibrary("Dal tadka recipe")?.id).toBe("dal-tadka");
     expect(findInLibrary("thakkali rasam")?.id).toBe("tomato-rasam");
-    expect(findInLibrary("palak paneer")).toBeUndefined();
+    expect(findInLibrary("palak paneer")?.id).toBe("palak-paneer");
+    expect(findInLibrary("margherita pizza")).toBeUndefined();
     expect(findInLibrary("a")).toBeUndefined();
   });
   it("understands simple typed tweaks", () => {

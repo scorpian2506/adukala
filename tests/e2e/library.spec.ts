@@ -1,15 +1,13 @@
 import { test, expect } from "./fixtures";
 
-test("home lists the library and filters by region", async ({ page }) => {
+test("home shows the library, categories and everyday favourites", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Cook it right/ })).toBeVisible();
-  await expect(page.getByText("14 dishes")).toBeVisible();
-  await page.getByRole("button", { name: "South", exact: true }).click();
-  await expect(page.getByText("7 dishes")).toBeVisible();
-  await expect(page.getByRole("link", { name: /Sambar/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Dal Tadka/ })).toHaveCount(0);
-  await page.getByRole("button", { name: "Breakfast" }).click();
-  await expect(page.getByText("2 dishes")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Search 1\d\d recipes/ })).toBeVisible();
+  for (const c of ["Tamil", "Kerala", "North Indian", "Biryani", "Indo-Chinese", "Kids' meals"]) await expect(page.getByRole("link", { name: new RegExp(`^${c} \\d+$`) })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Everyday favourites" })).toBeVisible();
+  await page.getByRole("link", { name: /Browse all/ }).click();
+  await expect(page).toHaveURL(/\/search/);
 });
 
 test("recipe page rescales quantities with servings", async ({ page }) => {

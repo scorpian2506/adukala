@@ -5,6 +5,7 @@ export const alooGobi: Recipe = {
   name: "Aloo Gobi",
   native: "Aloo gobi ki sabzi",
   region: "north",
+  cuisine: "north",
   course: "side",
   blurb: "Potatoes and cauliflower pan-cooked dry with turmeric, cumin and a sour hit of mango powder.",
   servings: 3,

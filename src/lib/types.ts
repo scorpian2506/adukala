@@ -76,8 +76,13 @@ export interface Recipe {
   id: string;
   name: string;
   native?: string; // name in the regional language
-  region: "north" | "south";
-  course: "main" | "dal" | "rice" | "breakfast" | "side" | "drink";
+  region: "north" | "south" | "indo_chinese";
+  /** Finer origin, for filters and search. */
+  cuisine?: "tamil" | "kerala" | "karnataka" | "andhra" | "hyderabadi" | "punjabi" | "north" | "indo_chinese";
+  course: "main" | "dal" | "rice" | "breakfast" | "side" | "drink" | "snack" | "dessert" | "bread" | "noodles" | "soup";
+  kidFriendly?: boolean;
+  /** Extra search words: other names and spellings ("kuzhambu", "kulambu", "gravy"). */
+  tags?: string[];
   blurb: string; // one line
   servings: number;
   prepMin: number;
@@ -96,4 +101,5 @@ export interface Recipe {
   method?: "rules" | "ai"; // how an imported recipe was converted
   warnings?: string[]; // things the cook should double-check
   createdAt?: number;
+  updatedAt?: number;
 }

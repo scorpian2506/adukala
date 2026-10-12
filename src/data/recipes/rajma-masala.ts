@@ -5,6 +5,7 @@ export const rajmaMasala: Recipe = {
   name: "Rajma Masala",
   native: "Rajma",
   region: "north",
+  cuisine: "punjabi",
   course: "main",
   blurb: "Red kidney beans slow-simmered in a thick onion-tomato gravy, the Punjabi Sunday lunch.",
   servings: 4,

@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { Wordmark } from "./Wordmark";
+import { NavTracker } from "./Nav";
+import { SyncAgent } from "./SyncAgent";
 
 // Adukala is a phone product. On a wide screen we present the app inside a
 // device-sized column and offer a QR code to move to the phone.
@@ -34,7 +36,13 @@ export function DesktopFrame({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="app-frame relative mx-auto w-full lg:w-[420px] lg:overflow-hidden lg:rounded-[40px] lg:border lg:border-line-2 lg:bg-paper lg:shadow-[0_40px_80px_-30px_rgba(28,24,19,.45),0_0_0_10px_#1c1813]">
-        <div className="app-scroll lg:h-[var(--frame-h)] lg:overflow-y-auto no-scrollbar">{children}</div>
+        <div className="app-scroll lg:h-[var(--frame-h)] lg:overflow-y-auto no-scrollbar">
+          <Suspense fallback={null}>
+            <NavTracker />
+          </Suspense>
+          <SyncAgent />
+          {children}
+        </div>
       </div>
 
       <aside className="hidden lg:flex lg:flex-col lg:items-start lg:justify-end lg:self-stretch lg:py-12">

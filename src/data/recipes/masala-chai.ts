@@ -5,6 +5,7 @@ export const masalaChai: Recipe = {
   name: "Masala Chai",
   native: "Masala chai",
   region: "north",
+  cuisine: "north",
   course: "drink",
   blurb: "Strong milky tea boiled with fresh ginger, cardamom and cloves.",
   servings: 2,

@@ -153,3 +153,36 @@ export const Eye = (p: P) => (
     <circle cx="12" cy="12" r="2.8" />
   </svg>
 );
+export const HomeIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4 11l8-6.5 8 6.5M6 9.5V19.5h4.5v-5h3v5H18V9.5" />
+  </svg>
+);
+export const SearchIcon = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="M16 16l4.5 4.5" />
+  </svg>
+);
+export const Star = ({ filled, ...p }: P & { filled?: boolean }) => (
+  <svg {...base(p)}>
+    <path d="M12 3.8l2.5 5.2 5.7.8-4.1 4 1 5.7L12 16.8l-5.1 2.7 1-5.7-4.1-4 5.7-.8z" fill={filled ? "currentColor" : "none"} />
+  </svg>
+);
+export const Pin = ({ filled, ...p }: P & { filled?: boolean }) => (
+  <svg {...base(p)}>
+    <path d="M9 4h6l-1 5 3.5 3v1.5h-11V12L10 9z" fill={filled ? "currentColor" : "none"} />
+    <path d="M12 13.5V20" />
+  </svg>
+);
+export const User = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="8.5" r="3.8" />
+    <path d="M4.5 20c1.2-3.8 4-5.5 7.5-5.5s6.3 1.7 7.5 5.5" />
+  </svg>
+);
+export const Bookmark = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
+  </svg>
+);

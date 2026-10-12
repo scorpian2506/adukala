@@ -12,7 +12,9 @@ Measured Indian cooking, one step at a time. Adukala is a mobile-first web app t
 
 The core app needs no AI and no API key.
 
-1. **Library.** 14 hand-written, validated recipes: dal tadka, sambar, rajma, chole, upma, pongal and more.
+1. **Library.** 106 validated recipes: Tamil and Kerala home cooking, North Indian curries and breads, biryanis, Indo-Chinese and kids' meals. Add a file to `src/data/recipes/` and run `npm run gen:recipes`.
+   - **Search** forgives spelling (biriyani/biryani, kulambu/kuzhambu, meen = fish) and filters by cuisine, kids, veg, sweets, under 30 minutes.
+   - **Star** favourites and **pin** weekly dishes to the top of Home.
 2. **YouTube converter (free, rule-based).** Paste a recipe video link. Adukala finds the cook's own written recipe, then converts it into measured, timed steps with deterministic rules (`src/lib/convert.ts`). The recipe comes from either:
    - the cook's website, linked in the video description (WP Recipe Maker markup or schema.org JSON-LD);
    - the ingredient list pasted into the description.
@@ -20,6 +22,16 @@ The core app needs no AI and no API key.
 4. **Offline tweaks.** Change servings, or make a recipe low oil, less spicy or kid friendly, without AI.
 
 When a video has no written recipe, Adukala says so and offers videos from cooks who do publish one. It never invents amounts from a title. Any amount it has to estimate ("a few curry leaves", "salt to taste") is marked **est.** and listed in a warning.
+
+## Accounts and households
+
+Username + password (no email). Sign-in keeps your stars, pins and saved recipes on every phone. Share a household code so your family sees the same list.
+
+- **Passwords:** scrypt hashes.
+- **Sessions:** httpOnly SameSite cookies.
+- **Login protection:** lockout after 8 failed tries, and requests from other sites are rejected.
+- **Sync:** two-way, and the newest change per item wins (`src/lib/sync-merge.ts`).
+- **Database:** Postgres. Production uses Neon via `DATABASE_URL`. Local dev and tests use PGlite, Postgres in WebAssembly, so `npm test` needs no setup.
 
 ## Optional AI (free options available)
 
@@ -51,8 +63,8 @@ From datacenter IPs such as Vercel's, YouTube blocks its watch page and player A
 ## Tests
 
 ```bash
-npm test            # 124 unit tests (Vitest): quantities, scaling, scraping, converter, AI output cleanup
-npm run test:e2e    # 25 browser tests (Playwright, iPhone viewport, production build, stubbed APIs)
+npm test            # 241 unit tests (Vitest): recipes, search, converter, accounts and sync against real Postgres
+npm run test:e2e    # 33 browser tests (Playwright, iPhone viewport, production build, stubbed APIs)
 npm run test:live   # opt-in: real YouTube calls (E2E_BASE_URL=https://… to hit a deployment)
 npm run test:batch  # real dishes → real videos → converter → quality rules (BASE=https://…)
 npm run validate    # quality rules for the recipe library

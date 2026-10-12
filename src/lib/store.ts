@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import type { Recipe } from "./types";
 import { PROVIDERS, isProviderId, type ProviderId } from "./providers";
+import type { SyncItem } from "./sync-merge";
 
 // Everything personal lives in the browser: AI keys (optional), saved
 // recipes, and where they are in a cook.
@@ -11,6 +12,8 @@ const KEYS = {
   settings: "adukala.settings.v1",
   recipes: "adukala.recipes.v1",
   progress: "adukala.progress.v1",
+  marks: "adukala.marks.v1",
+  deleted: "adukala.deleted.v1",
 } as const;
 
 export interface Settings {
@@ -145,7 +148,12 @@ export function getSavedRecipes(): Recipe[] {
 
 export function saveRecipe(recipe: Recipe) {
   const rest = getSavedRecipes().filter((r) => r.id !== recipe.id);
-  write(KEYS.recipes, [{ ...recipe, createdAt: recipe.createdAt ?? Date.now() }, ...rest]);
+  const now = Date.now();
+  write(KEYS.recipes, [{ ...recipe, createdAt: recipe.createdAt ?? now, updatedAt: now }, ...rest]);
+  const tomb = { ...getDeleted() };
+  delete tomb[recipe.id];
+  write(KEYS.deleted, tomb);
+  changed();
 }
 
 export function deleteRecipe(id: string) {
@@ -153,6 +161,93 @@ export function deleteRecipe(id: string) {
     KEYS.recipes,
     getSavedRecipes().filter((r) => r.id !== id),
   );
+  write(KEYS.deleted, { ...getDeleted(), [id]: Date.now() });
+  changed();
+}
+
+// ---------- stars & pins ----------
+// Each mark keeps when it last changed, so two phones in a household can merge (latest wins).
+
+export type MarkKind = "star" | "pin";
+export interface Mark {
+  on: boolean;
+  at: number;
+}
+const EMPTY_MARKS: Record<string, Mark> = {};
+const EMPTY_DELETED: Record<string, number> = {};
+
+export function getMarks(): Record<string, Mark> {
+  return read<Record<string, Mark>>(KEYS.marks, EMPTY_MARKS);
+}
+
+export function getDeleted(): Record<string, number> {
+  return read<Record<string, number>>(KEYS.deleted, EMPTY_DELETED);
+}
+
+export function useMarks(): Record<string, Mark> {
+  return useSyncExternalStore(subscribe, getMarks, () => EMPTY_MARKS);
+}
+
+export function isMarked(marks: Record<string, Mark>, kind: MarkKind, id: string) {
+  return !!marks[`${kind}:${id}`]?.on;
+}
+
+export function toggleMark(kind: MarkKind, id: string) {
+  const marks = getMarks();
+  const key = `${kind}:${id}`;
+  write(KEYS.marks, { ...marks, [key]: { on: !marks[key]?.on, at: Date.now() } });
+  changed();
+}
+
+/** Ids marked with `kind`, most recently marked first. */
+export function markedIds(marks: Record<string, Mark>, kind: MarkKind): string[] {
+  return Object.entries(marks)
+    .filter(([k, m]) => m.on && k.startsWith(`${kind}:`))
+    .sort((a, b) => b[1].at - a[1].at)
+    .map(([k]) => k.slice(kind.length + 1));
+}
+
+// ---------- sync hooks ----------
+// The account layer registers a listener; every change to shared data pings it.
+
+const changeListeners = new Set<() => void>();
+function changed() {
+  changeListeners.forEach((l) => l());
+}
+export function onSharedChange(cb: () => void) {
+  changeListeners.add(cb);
+  return () => changeListeners.delete(cb);
+}
+
+export type { SyncItem };
+
+/** Everything this phone knows about shared data, for a two-way merge with the household. */
+export function localSyncItems(): SyncItem[] {
+  const items: SyncItem[] = [];
+  for (const r of getSavedRecipes()) items.push({ kind: "recipe", key: r.id, data: r, updatedAt: r.updatedAt ?? r.createdAt ?? 0 });
+  for (const [id, at] of Object.entries(getDeleted())) items.push({ kind: "recipe", key: id, deleted: true, updatedAt: at });
+  for (const [k, m] of Object.entries(getMarks())) {
+    const [kind, ...rest] = k.split(":");
+    items.push({ kind: kind as MarkKind, key: rest.join(":"), deleted: !m.on, updatedAt: m.at });
+  }
+  return items;
+}
+
+/** Replace local shared data with the merged household set from the server. */
+export function applySyncItems(items: SyncItem[]) {
+  const recipes: Recipe[] = [];
+  const deleted: Record<string, number> = {};
+  const marks: Record<string, Mark> = {};
+  for (const it of items) {
+    if (it.kind === "recipe") {
+      if (it.deleted) deleted[it.key] = it.updatedAt;
+      else if (it.data) recipes.push({ ...(it.data as Recipe), updatedAt: it.updatedAt });
+    } else marks[`${it.kind}:${it.key}`] = { on: !it.deleted, at: it.updatedAt };
+  }
+  recipes.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+  write(KEYS.recipes, recipes);
+  write(KEYS.deleted, deleted);
+  write(KEYS.marks, marks);
 }
 
 export function useSavedRecipes(): Recipe[] {

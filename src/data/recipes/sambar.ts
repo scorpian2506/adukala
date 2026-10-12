@@ -5,6 +5,7 @@ export const sambar: Recipe = {
   name: "Sambar",
   native: "Paruppu sambar",
   region: "south",
+  cuisine: "tamil",
   course: "dal",
   blurb: "Tangy lentil and drumstick stew, tempered with mustard, curry leaves and hing.",
   servings: 4,

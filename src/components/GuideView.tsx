@@ -1,8 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "./Icons";
 import { StepArt } from "./StepArt";
+import { TopBar } from "./Nav";
 
 const MEASURES = [
   { name: "Teaspoon", short: "tsp", ml: "5 ml", tip: "Level it off with the back of a knife. Heaped spoons ruin spice balance.", size: 18 },
@@ -24,13 +23,10 @@ const SALT = [
 ];
 
 export function GuideView() {
-  const router = useRouter();
   return (
     <main className="app-min-h pb-16">
-      <header className="safe-t px-4 pb-2">
-        <button onClick={() => router.back()} className="press grid h-10 w-10 place-items-center rounded-full border border-line-2" aria-label="Back">
-          <ArrowLeft />
-        </button>
+      <header className="px-4 pb-2">
+        <TopBar />
       </header>
       <div className="px-5">
         <p className="eyebrow text-ink-3">Kitchen basics</p>
