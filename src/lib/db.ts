@@ -42,6 +42,8 @@ const MIGRATIONS = [
      primary key (household_id, kind, key)
    )`,
   `create index if not exists sessions_user on sessions(user_id)`,
+  `alter table users add column if not exists join_failures int not null default 0`,
+  `alter table users add column if not exists join_window timestamptz`,
 ];
 
 const g = globalThis as unknown as { __adukalaDb?: Promise<Db> };
@@ -74,6 +76,7 @@ export function getDb(): Promise<Db> {
 
 /** Tests only: start from an empty database. */
 export async function resetDbForTests() {
+  if (process.env.DATABASE_URL) throw new Error("Refusing to wipe a real database. Unset DATABASE_URL for tests.");
   const db = await getDb();
   for (const t of ["items", "sessions", "users", "households"]) await db.query(`delete from ${t}`);
 }

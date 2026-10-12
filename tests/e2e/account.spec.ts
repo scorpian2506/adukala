@@ -1,7 +1,8 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
 
-const uniq = () => `t${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`;
+// "e2e_" prefix so test accounts on a real deployment are easy to find and remove.
+const uniq = () => `e2e_${Date.now().toString(36)}${Math.floor(Math.random() * 1e3)}`;
 
 async function signUp(page: Page, username: string, code?: string) {
   await page.goto("/account");

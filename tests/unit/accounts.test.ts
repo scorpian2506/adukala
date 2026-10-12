@@ -144,6 +144,13 @@ describe("households and sync", () => {
     expect(items.items.map((i: { key: string }) => i.key)).toContain("avial");
   });
 
+  it("limits guessing household codes", async () => {
+    const a = await newUser("guesser");
+    let last = 0;
+    for (let i = 0; i < 11; i++) last = (await join(post("/api/household/join", { code: `ZZZZ${i}` }, a.cookie))).status;
+    expect(last).toBe(429);
+  });
+
   it("renames the household", async () => {
     const a = await newUser("sriram");
     const res = await rename(post("/api/household/rename", { name: "  Swaminathan   home " }, a.cookie));

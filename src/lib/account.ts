@@ -1,7 +1,8 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { applySyncItems, localSyncItems, type SyncItem } from "./store";
+import { applySyncItems, clearSharedData, localSyncItems, type SyncItem } from "./store";
+import { itemId, mergeItems } from "./sync-merge";
 
 // Who's signed in, and keeping the household's shared data in sync.
 
@@ -73,6 +74,8 @@ export async function logIn(input: { username: string; password: string }) {
 
 export async function logOut() {
   await call("/api/auth/logout", {});
+  // The household's data stays in the account, not on a phone someone else may use next.
+  clearSharedData();
   set({ status: "out", user: undefined, household: undefined, lastSync: undefined });
 }
 
@@ -94,8 +97,15 @@ export function syncNow(): Promise<void> {
     set({ syncing: true, syncError: undefined });
     try {
       const r = await call<{ items: SyncItem[] }>("/api/sync", { items: localSyncItems() });
-      applySyncItems(r.items);
+      // Anything changed on this phone while the request was in flight must survive:
+      // merge the reply with what's here *now*, not what was sent.
+      const now = localSyncItems();
+      const merged = mergeItems(now, r.items);
+      applySyncItems(merged);
+      const server = new Map(r.items.map((i) => [itemId(i), i.updatedAt]));
+      const newer = now.some((i) => (server.get(itemId(i)) ?? -1) < i.updatedAt);
       set({ syncing: false, lastSync: Date.now() });
+      if (newer) queueMicrotask(() => void syncNow());
     } catch (e) {
       set({ syncing: false, syncError: e instanceof Error ? e.message : "Sync failed" });
       if (e instanceof Error && /log in/i.test(e.message)) set({ status: "out" });

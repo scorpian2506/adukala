@@ -233,6 +233,12 @@ export function localSyncItems(): SyncItem[] {
   return items;
 }
 
+export function clearSharedData() {
+  write(KEYS.recipes, []);
+  write(KEYS.deleted, {});
+  write(KEYS.marks, {});
+}
+
 /** Replace local shared data with the merged household set from the server. */
 export function applySyncItems(items: SyncItem[]) {
   const recipes: Recipe[] = [];

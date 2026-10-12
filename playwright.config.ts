@@ -16,7 +16,14 @@ export default defineConfig({
   // Test the production build, not the dev server.
   webServer: process.env.E2E_BASE_URL
     ? undefined
-    : { command: `npm run build && npx next start -p ${PORT}`, port: PORT, timeout: 240_000, reuseExistingServer: !process.env.CI },
+    : {
+        command: `npm run build && npx next start -p ${PORT}`,
+        port: PORT,
+        timeout: 240_000,
+        reuseExistingServer: !process.env.CI,
+        // Local runs always use the in-memory PGlite database, never production.
+        env: { DATABASE_URL: "" },
+      },
   projects: [
     { name: "mobile", testIgnore: /live\.spec/ },
     { name: "live", testMatch: /live\.spec/ },

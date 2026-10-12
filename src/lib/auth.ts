@@ -249,8 +249,22 @@ export async function householdInfo(householdId: string) {
 /** Move a user into another household, bringing their saved items along. */
 export async function joinHousehold(user: SessionUser, rawCode: unknown) {
   const code = normaliseCode(rawCode);
+  const db0 = await getDb();
+  // Codes are short; stop anyone guessing them: 10 wrong codes per hour.
+  const [limits] = await db0.query<{ join_failures: number; fresh: boolean }>(
+    `select join_failures, (join_window is not null and join_window > now() - interval '1 hour') as fresh from users where id = $1`,
+    [user.id],
+  );
+  if (limits?.fresh && limits.join_failures >= 10) throw new AuthError("Too many wrong codes. Try again in an hour.", 429);
   const target = await householdByCode(code);
-  if (!target) throw new AuthError("That household code doesn't exist.", 404);
+  if (!target) {
+    await db0.query(
+      `update users set join_failures = case when join_window is not null and join_window > now() - interval '1 hour' then join_failures + 1 else 1 end,
+         join_window = case when join_window is not null and join_window > now() - interval '1 hour' then join_window else now() end where id = $1`,
+      [user.id],
+    );
+    throw new AuthError("That household code doesn't exist.", 404);
+  }
   if (target === user.householdId) return target;
   const db = await getDb();
   // Copy items over; where both have the same item, the newer change wins.
