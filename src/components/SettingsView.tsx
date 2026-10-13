@@ -103,7 +103,8 @@ function ProviderChoice({ id }: { id: ProviderId }) {
   const p = PROVIDERS[id];
   const [draft, setDraft] = useState<string | null>(null);
   const [show, setShow] = useState(false);
-  const [test, setTest] = useState<{ state: "idle" | "busy" | "ok" | "fail"; msg?: string }>({ state: "idle" });
+  const [test, setTest] = useState<{ state: "idle" | "busy" | "ok" | "fail"; msg?: string; detail?: string }>({ state: "idle" });
+  const [live, setLive] = useState<{ state: "idle" | "busy" | "ok" | "fail"; models?: string[]; msg?: string }>({ state: "idle" });
   const saved = settings.keys[id] ?? "";
   const key = draft ?? saved;
   const dirty = draft !== null && draft.trim() !== saved;
@@ -115,9 +116,28 @@ function ProviderChoice({ id }: { id: ProviderId }) {
     try {
       const res = await fetch("/api/ping", { method: "POST", headers: aiHeaders() });
       const data = await res.json();
-      setTest(res.ok ? { state: "ok", msg: `Connected · ${data.model}` } : { state: "fail", msg: data.error });
+      setTest(res.ok ? { state: "ok", msg: `Working · ${data.model}` } : { state: "fail", msg: data.error, detail: data.detail });
     } catch {
       setTest({ state: "fail", msg: "Couldn't reach the server." });
+    }
+  }
+
+  async function loadModels() {
+    if (dirty) saveKey(id, draft ?? "");
+    setDraft(null);
+    setLive({ state: "busy" });
+    try {
+      const res = await fetch("/api/models", { method: "POST", headers: aiHeaders() });
+      const data = await res.json();
+      if (!res.ok) return setLive({ state: "fail", msg: data.error });
+      setLive({ state: "ok", models: data.models });
+      // The saved model no longer exists for this key: switch to one that does.
+      if (!data.available && data.models.length) {
+        const pick = data.models.includes(p.defaultModel) ? p.defaultModel : data.models[0];
+        saveModel(id, pick);
+      }
+    } catch {
+      setLive({ state: "fail", msg: "Couldn't reach the server." });
     }
   }
 
@@ -192,14 +212,28 @@ function ProviderChoice({ id }: { id: ProviderId }) {
           </p>
         )}
         {test.state === "fail" && (
-          <p className="mt-3 text-[13px] text-chilli" role="alert">
-            {test.msg}
-          </p>
+          <div className="mt-3 text-[13px] text-chilli" role="alert">
+            <p>{test.msg}</p>
+            {test.detail && <p className="mt-1 break-words rounded-lg bg-chilli-soft/30 px-2 py-1.5 font-mono text-[11px] text-ink-2">{test.detail}</p>}
+          </div>
         )}
 
-        <p className="eyebrow mt-5 text-ink-3">Model</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {p.models.map((m) => (
+        <div className="mt-5 flex items-center justify-between">
+          <p className="eyebrow text-ink-3">Model</p>
+          {(!p.needsKey || key) && (
+            <button onClick={loadModels} className="press text-[12px] text-ink-2 underline underline-offset-4">
+              {live.state === "busy" ? "Loading…" : "Load models for my key"}
+            </button>
+          )}
+        </div>
+        {live.state === "fail" && <p className="mt-1 text-[12px] text-chilli">{live.msg}</p>}
+        {live.state === "ok" && live.models && (
+          <p className="mt-1 text-[12px] text-ink-3">
+            {live.models.length} models available{live.models.includes(modelFor(settings, id)) ? "" : " — your saved model isn't one of them"}.
+          </p>
+        )}
+        <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+          {(live.models?.length ? live.models : p.models).map((m) => (
             <button
               key={m}
               onClick={() => saveModel(id, m)}

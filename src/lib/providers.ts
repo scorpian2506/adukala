@@ -39,7 +39,8 @@ export const PROVIDERS: Record<ProviderId, Provider> = {
     tagline: "Runs open-source models (gpt-oss, Llama), very fast.",
     baseURL: "https://api.groq.com/openai/v1",
     defaultModel: "openai/gpt-oss-120b",
-    models: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile"],
+    // llama-3.3-70b-versatile was retired on 2026-08-16.
+    models: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
     keyUrl: "https://console.groq.com/keys",
     free: true,
     api: "chat",
@@ -50,8 +51,9 @@ export const PROVIDERS: Record<ProviderId, Provider> = {
     name: "OpenRouter",
     tagline: "Many free open-source models. They change often, so the model name is editable.",
     baseURL: "https://openrouter.ai/api/v1",
-    defaultModel: "openai/gpt-oss-120b:free",
-    models: ["openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free"],
+    // Free models rotate often; Settings also loads the live list.
+    defaultModel: "nvidia/nemotron-3-super-120b-a12b:free",
+    models: ["nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free"],
     keyUrl: "https://openrouter.ai/keys",
     free: true,
     api: "chat",
@@ -82,6 +84,17 @@ export const PROVIDERS: Record<ProviderId, Provider> = {
     needsKey: false,
   },
 };
+
+/** Model ids we once offered that providers have since removed. Saved choices of these fall back to the default. */
+export const RETIRED_MODELS = new Set([
+  "llama-3.3-70b-versatile",
+  "llama-3.1-8b-instant",
+  "openai/gpt-oss-120b:free",
+  "openai/gpt-oss-20b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+]);
 
 export const PROVIDER_ORDER: ProviderId[] = ["gemini", "groq", "openrouter", "openai", "ollama"];
 

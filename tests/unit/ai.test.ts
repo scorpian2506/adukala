@@ -15,7 +15,7 @@ describe("provider selection", () => {
     const ai = clientFrom(req({ "x-ai-provider": "gemini", "x-ai-key": "k" }));
     expect(ai.client.baseURL).toBe("https://generativelanguage.googleapis.com/v1beta/openai/");
     expect(ai.model).toBe("gemini-3.8-flash");
-    expect(clientFrom(req({ "x-ai-provider": "groq", "x-ai-key": "k", "x-ai-model": "llama-3.3-70b-versatile" })).model).toBe("llama-3.3-70b-versatile");
+    expect(clientFrom(req({ "x-ai-provider": "groq", "x-ai-key": "k", "x-ai-model": "openai/gpt-oss-20b" })).model).toBe("openai/gpt-oss-20b");
   });
 });
 
@@ -93,5 +93,31 @@ describe("structured output on free providers", () => {
     const out = await structured<{ ok: boolean }>({ ai, instructions: "x", input: "y", schema: { type: "object" }, name: "t" });
     expect(out).toEqual({ ok: true });
     expect(calls).toEqual(["json_schema", "json_object"]);
+  });
+});
+
+describe("provider housekeeping", () => {
+  it("falls back from retired models to the current default", () => {
+    const r = (h: Record<string, string>) => new Request("http://x", { headers: { "x-ai-key": "k", ...h } });
+    expect(clientFrom(r({ "x-ai-provider": "groq", "x-ai-model": "llama-3.3-70b-versatile" })).model).toBe("openai/gpt-oss-120b");
+    expect(clientFrom(r({ "x-ai-provider": "openrouter", "x-ai-model": "openai/gpt-oss-120b:free" })).model).toBe("nvidia/nemotron-3-super-120b-a12b:free");
+    expect(clientFrom(r({ "x-ai-provider": "gemini", "x-ai-model": "gemini-2.5-flash" })).model).toBe("gemini-3.8-flash");
+  });
+  it("passes the provider's own error text through", async () => {
+    const OpenAI = (await import("openai")).default;
+    const { errorResponse } = await import("@/lib/ai");
+    const res = errorResponse(new OpenAI.APIError(400, { message: "model_decommissioned: use gpt-oss" }, "model_decommissioned: use gpt-oss", new Headers()));
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.detail).toMatch(/model_decommissioned/);
+  });
+  it("the connection test makes a real structured request (and asks Groq for low reasoning)", async () => {
+    const { ping } = await import("@/lib/ai");
+    const seen: Record<string, unknown>[] = [];
+    const client = { chat: { completions: { create: async (b: Record<string, unknown>) => (seen.push(b), { choices: [{ message: { content: '{"ok":true,"dish":"sambar"}' } }] }) } } };
+    const ai = { ...clientFrom(new Request("http://x", { headers: { "x-ai-provider": "groq", "x-ai-key": "k" } })), client: client as never };
+    await ping(ai);
+    expect((seen[0].response_format as { type: string }).type).toBe("json_schema");
+    expect(seen[0].reasoning_effort).toBe("low");
   });
 });

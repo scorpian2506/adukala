@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { Recipe } from "./types";
-import { PROVIDERS, isProviderId, type ProviderId } from "./providers";
+import { PROVIDERS, RETIRED_MODELS, isProviderId, type ProviderId } from "./providers";
 import type { SyncItem } from "./sync-merge";
 
 // Everything personal lives in the browser: AI keys (optional), saved
@@ -35,7 +35,8 @@ export function aiReady(s: Settings) {
 }
 
 export function modelFor(s: Settings, id: ProviderId) {
-  return s.models[id]?.trim() || PROVIDERS[id].defaultModel;
+  const m = s.models[id]?.trim();
+  return m && !RETIRED_MODELS.has(m) ? m : PROVIDERS[id].defaultModel;
 }
 
 export interface Progress {

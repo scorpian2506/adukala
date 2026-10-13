@@ -10,7 +10,7 @@ export const test = base.extend<{ errors: string[] }>({
       page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
       page.on("console", (m) => {
         // Error responses the test asked the stubbed API for are expected.
-        if (m.type() === "error" && !/status of (401|422|502)/.test(m.text())) errors.push(`console: ${m.text()}`);
+        if (m.type() === "error" && !/status of (400|401|404|422|502|504)/.test(m.text())) errors.push(`console: ${m.text()}`);
       });
       // Thumbnails come from YouTube; keep tests offline and deterministic.
       await page.route(/i\.ytimg\.com/, (r) => r.fulfill({ contentType: "image/png", body: PNG }));

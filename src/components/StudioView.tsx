@@ -90,7 +90,7 @@ export function StudioView() {
     const res = await fetch(path, { method: "POST", headers: aiHeaders(), body: JSON.stringify(body) });
     const data = await res.json().catch(() => ({ error: "Unexpected response from the server." }));
     if (!res.ok) {
-      const err = new Error(data.error || "Something went wrong") as Error & { status?: number };
+      const err = new Error([data.error || "Something went wrong", data.detail].filter(Boolean).join(" — ")) as Error & { status?: number };
       err.status = res.status;
       throw err;
     }

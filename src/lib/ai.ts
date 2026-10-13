@@ -1,7 +1,7 @@
 import "server-only";
 import OpenAI from "openai";
 import type { Recipe, Step, StepItem, Ingredient, Unit } from "./types";
-import { PROVIDERS, isProviderId, type Provider } from "./providers";
+import { PROVIDERS, RETIRED_MODELS, isProviderId, type Provider } from "./providers";
 
 export class AIError extends Error {
   constructor(
@@ -29,7 +29,8 @@ export function clientFrom(req: Request): AIContext {
   }
   const key = req.headers.get("x-ai-key")?.trim() || (id === "openai" ? process.env.OPENAI_API_KEY : "") || "";
   if (provider.needsKey && !key) throw new AIError(`Add your ${provider.name} key in Settings.`, 401);
-  const model = req.headers.get("x-ai-model")?.trim().slice(0, 100) || provider.defaultModel;
+  const asked = req.headers.get("x-ai-model")?.trim().slice(0, 100);
+  const model = asked && !RETIRED_MODELS.has(asked) ? asked : provider.defaultModel;
   const client = new OpenAI({ apiKey: key || "ollama", baseURL: provider.baseURL, timeout: 280_000, maxRetries: 1 });
   return { client, model, provider, key };
 }
@@ -41,12 +42,15 @@ export function errorResponse(e: unknown) {
       e.status === 401 || e.status === 403
         ? "The AI provider rejected the key. Check it in Settings."
         : e.status === 404
-          ? "That model isn't available for your key. Pick another model in Settings."
+          ? "That model isn't available for your key. Pick another model in Settings (tap “Load models”)."
           : e.status === 429
             ? "Rate limit reached on your AI plan. Wait a minute and try again."
-            : e.message;
-    return Response.json({ error: msg }, { status: e.status && e.status < 600 ? e.status : 500 });
+            : "The AI provider returned an error.";
+    // Always pass on the provider's own words so problems can be diagnosed.
+    const detail = `${e.status ?? ""} ${e.message}`.trim().slice(0, 400);
+    return Response.json({ error: msg, detail }, { status: e.status && e.status < 600 ? e.status : 500 });
   }
+  if (e instanceof Error && /timeout|aborted/i.test(e.message)) return Response.json({ error: "The AI took too long to answer. Try again, or pick a faster model.", detail: e.message }, { status: 504 });
   if (e instanceof SyntaxError) return Response.json({ error: "The AI replied with something we couldn't read. Try again, or try another model." }, { status: 502 });
   console.error(e);
   return Response.json({ error: "Something went wrong. Please try again." }, { status: 500 });
@@ -311,10 +315,13 @@ async function chatStructured<T>(opts: { ai: AIContext; instructions: string; in
     { role: "system" as const, content: opts.instructions },
     { role: "user" as const, content: opts.input },
   ];
+  // Groq's gpt-oss models think before answering; keep that short so answers come back quickly.
+  const extra = opts.ai.provider.id === "groq" && /gpt-oss/.test(model) ? { reasoning_effort: "low" as const } : {};
   try {
     const res = await client.chat.completions.create({
       model,
       messages,
+      ...extra,
       response_format: { type: "json_schema", json_schema: { name: opts.name, schema: opts.schema as Record<string, unknown>, strict: true } },
     });
     return parseJsonReply<T>(res.choices[0]?.message?.content ?? "");
@@ -324,6 +331,7 @@ async function chatStructured<T>(opts: { ai: AIContext; instructions: string; in
   }
   const res = await client.chat.completions.create({
     model,
+    ...extra,
     messages: [
       { role: "system", content: `${opts.instructions}\n\nReply with ONE JSON object only, no prose, matching this JSON Schema exactly (use null for unknown optional fields):\n${JSON.stringify(opts.schema)}` },
       { role: "user", content: opts.input },
@@ -333,13 +341,43 @@ async function chatStructured<T>(opts: { ai: AIContext; instructions: string; in
   return parseJsonReply<T>(res.choices[0]?.message?.content ?? "");
 }
 
-/** Tiny request to check a key/model works. */
+/**
+ * Check a key + model the same way the app uses them: a tiny structured-JSON request.
+ * (A bare "say OK" with a 5-token limit can fail on reasoning models even when everything works.)
+ */
 export async function ping(ai: AIContext) {
-  if (ai.provider.api === "responses") {
-    await ai.client.models.retrieve(ai.model);
-    return;
+  const out = await structured<{ ok: boolean; dish: string }>({
+    ai,
+    instructions: "You are a test. Reply with JSON only.",
+    input: 'Return {"ok": true, "dish": "sambar"}.',
+    schema: { type: "object", additionalProperties: false, required: ["ok", "dish"], properties: { ok: { type: "boolean" }, dish: { type: "string" } } },
+    name: "connection_test",
+  });
+  if (!out || typeof out.ok !== "boolean") throw new AIError("The model answered, but not in the JSON format Adukala needs. Pick another model.", 502);
+}
+
+/** Models this key can use right now (providers retire free models often). */
+export async function listModels(ai: AIContext): Promise<string[]> {
+  const id = ai.provider.id;
+  if (id === "gemini") {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200`, { headers: { "x-goog-api-key": ai.key }, signal: AbortSignal.timeout(15_000) });
+    if (res.status === 400 || res.status === 401 || res.status === 403) throw new AIError("Google rejected the Gemini key. Check it in Settings.", 401);
+    const j = (await res.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] };
+    return (j.models ?? [])
+      .filter((m) => m.supportedGenerationMethods?.includes("generateContent") && /gemini/.test(m.name) && !/(embedding|tts|image|live|audio)/.test(m.name))
+      .map((m) => m.name.replace(/^models\//, ""));
   }
-  await ai.client.chat.completions.create({ model: ai.model, messages: [{ role: "user", content: "Reply with OK." }], max_tokens: 5 });
+  if (id === "openrouter") {
+    const res = await fetch("https://openrouter.ai/api/v1/models", { signal: AbortSignal.timeout(15_000) });
+    const j = (await res.json()) as { data?: { id: string; supported_parameters?: string[] }[] };
+    return (j.data ?? [])
+      .filter((m) => m.id.endsWith(":free") && (m.supported_parameters ?? []).some((p) => p === "structured_outputs" || p === "response_format"))
+      .map((m) => m.id);
+  }
+  const list = await ai.client.models.list();
+  const ids: string[] = [];
+  for await (const m of list) ids.push(m.id);
+  return ids.filter((m) => !/(whisper|tts|guard|embed|moderation|dall-e|image|audio|realtime|transcribe|search)/i.test(m)).sort();
 }
 
 // ---------- Gemini: watch the video, then research published recipes ----------
