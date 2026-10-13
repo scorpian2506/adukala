@@ -5,13 +5,16 @@ test("bottom navigation reaches every main screen", async ({ page }) => {
   const nav = page.getByRole("navigation", { name: "Main" }).filter({ visible: true });
   await nav.getByRole("link", { name: "Search", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Search" })).toBeVisible();
+  await nav.getByRole("link", { name: "Plan", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Meal plan" })).toBeVisible();
   await nav.getByRole("link", { name: "Saved", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Saved" })).toBeVisible();
   await nav.getByRole("link", { name: "Me", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your kitchen" })).toBeVisible();
   await nav.getByRole("link", { name: "Home", exact: true }).click();
   await expect(page.getByRole("heading", { name: /Cook it right/ })).toBeVisible();
-  await nav.getByRole("link", { name: "New recipe from YouTube" }).click();
+  // The YouTube studio stays one tap away from Home and Search.
+  await page.getByRole("link", { name: "New recipe from YouTube" }).filter({ visible: true }).first().click();
   await expect(page.getByRole("heading", { name: /What are we/ })).toBeVisible();
 });
 

@@ -9,7 +9,7 @@ import type { Recipe } from "@/lib/types";
 import { Wordmark } from "./Wordmark";
 import { RecipeCard, HUE_BG } from "./RecipeCard";
 import { DishArt } from "./DishArt";
-import { ArrowRight, Gear, YouTube, ChevronRight, SearchIcon, Pin } from "./Icons";
+import { ArrowRight, Gear, YouTube, ChevronRight, SearchIcon, Pin, Plus } from "./Icons";
 import { BottomNav } from "./Nav";
 import { CuisineTiles } from "./CuisineTiles";
 import { StepArt } from "./StepArt";
@@ -60,6 +60,10 @@ export function HomeView() {
     <main className="app-min-h relative pb-32">
       <header className="safe-t sticky top-0 z-20 flex items-center justify-between bg-paper/85 px-5 pb-3 backdrop-blur-md">
         <Wordmark className="text-[30px]" />
+        <div className="flex items-center gap-2">
+        <Link href="/create" className="press grid h-10 w-10 place-items-center rounded-full bg-ink text-paper" aria-label="New recipe from YouTube">
+          <Plus size={20} />
+        </Link>
         <Link
           href="/settings"
           className="press relative grid h-10 w-10 place-items-center rounded-full border border-line-2 text-ink"
@@ -68,6 +72,7 @@ export function HomeView() {
           <Gear />
           {aiReady(settings) && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-leaf ring-2 ring-paper" aria-label="AI connected" />}
         </Link>
+        </div>
       </header>
 
       <section className="px-5 pt-6">

@@ -151,6 +151,19 @@ describe("households and sync", () => {
     expect(last).toBe(429);
   });
 
+  it("plan slots, members and shopping ticks sync; different slots edited at once both survive", async () => {
+    const a = await newUser("sriram");
+    const b = await newUser("wife", { inviteCode: a.body.household.inviteCode });
+    const kid = { id: "m:kid1", name: "Ammu", kind: "child", age: 6 };
+    await sync(post("/api/sync", { items: [{ kind: "member", key: "m:kid1", data: kid, updatedAt: 10 }, { kind: "plan", key: "2026-10-12:mon:dinner", data: { dishes: [{ recipeId: "sambar", portions: { "m:kid1": 0.5 } }] }, updatedAt: 20 }] }, a.cookie));
+    // wife edits a different slot without having seen sriram's change
+    await sync(post("/api/sync", { items: [{ kind: "plan", key: "2026-10-12:tue:lunch", data: { dishes: [{ recipeId: "avial", portions: {} }] }, updatedAt: 15 }, { kind: "shop", key: "2026-10-12", data: { checked: ["Onion"] }, updatedAt: 16 }] }, b.cookie));
+    const all = await (await sync(post("/api/sync", { items: [] }, a.cookie))).json();
+    const keys = all.items.map((i: { kind: string; key: string }) => `${i.kind}:${i.key}`).sort();
+    expect(keys).toEqual(["member:m:kid1", "plan:2026-10-12:mon:dinner", "plan:2026-10-12:tue:lunch", "shop:2026-10-12"]);
+    expect(all.items.find((i: { key: string }) => i.key === "m:kid1").data.name).toBe("Ammu");
+  });
+
   it("renames the household", async () => {
     const a = await newUser("sriram");
     const res = await rename(post("/api/household/rename", { name: "  Swaminathan   home " }, a.cookie));

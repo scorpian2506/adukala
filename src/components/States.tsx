@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useHydrated } from "@/lib/useRecipe";
 import { StepArt } from "./StepArt";
 
 export function Loading() {
@@ -20,4 +23,10 @@ export function NotFound() {
       </Link>
     </div>
   );
+}
+
+/** Renders children only in the browser (for screens that depend on today's date or local data). */
+export function ClientOnly({ children }: { children: React.ReactNode }) {
+  const hydrated = useHydrated();
+  return hydrated ? <>{children}</> : <Loading />;
 }

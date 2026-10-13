@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { noteNavigation, useSmartBack } from "@/lib/nav";
-import { ArrowLeft, Bookmark, HomeIcon, Plus, SearchIcon, User } from "./Icons";
+import { ArrowLeft, Bookmark, Calendar, HomeIcon, SearchIcon, User } from "./Icons";
 
 /** Counts client-side navigations (mounted once in the root layout). */
 export function NavTracker() {
@@ -18,7 +18,7 @@ export function NavTracker() {
 const TABS = [
   { href: "/", label: "Home", icon: HomeIcon },
   { href: "/search", label: "Search", icon: SearchIcon },
-  { href: "/create", label: "New", icon: Plus, primary: true },
+  { href: "/plan", label: "Plan", icon: Calendar },
   { href: "/saved", label: "Saved", icon: Bookmark },
   { href: "/account", label: "Me", icon: User },
 ] as const;
@@ -42,21 +42,15 @@ function BottomNavInner() {
           const Icon = t.icon;
           return (
             <li key={t.href} className="flex justify-center">
-              {"primary" in t ? (
-                <Link href={t.href} aria-label="New recipe from YouTube" className="press -mt-5 grid h-14 w-14 place-items-center rounded-[20px] bg-ink text-paper shadow-[0_10px_24px_-10px_rgba(28,24,19,.6)]">
-                  <Icon size={24} />
-                </Link>
-              ) : (
-                <Link
-                  href={t.href}
-                  aria-current={active ? "page" : undefined}
-                  className={`press flex w-16 flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-medium ${active ? "text-ink" : "text-ink-3"}`}
-                >
-                  <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
-                  {t.label}
-                  <span className={`mt-0.5 h-1 w-1 rounded-full ${active ? "bg-chilli" : "bg-transparent"}`} />
-                </Link>
-              )}
+              <Link
+                href={t.href}
+                aria-current={active ? "page" : undefined}
+                className={`press flex w-16 flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-medium ${active ? "text-ink" : "text-ink-3"}`}
+              >
+                <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
+                {t.label}
+                <span className={`mt-0.5 h-1 w-1 rounded-full ${active ? "bg-chilli" : "bg-transparent"}`} />
+              </Link>
             </li>
           );
         })}

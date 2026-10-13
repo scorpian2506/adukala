@@ -15,6 +15,9 @@ import { aiHeaders, aiReady, deleteRecipe, getProgress, isMarked, saveProgress, 
 import { useRecipe } from "@/lib/useRecipe";
 import { EQUIPMENT_LABEL, KIND_LABEL, REGION_LABEL, formatQty, totalMinutes } from "@/lib/format";
 import type { Ingredient, Recipe } from "@/lib/types";
+import { recipeNutrition } from "@/lib/nutrition";
+import { addDish, useFamily } from "@/lib/household";
+import { DAYS, DAY_LABEL, MEALS, MEAL_LABEL, dayDate, todayDay, weekStart, type Day } from "@/lib/planner";
 import { DishArt } from "./DishArt";
 import { Dots, HUE_BG } from "./RecipeCard";
 import { ArrowRight, Check, Minus, Plus, Pin, Star, Trash, YouTube } from "./Icons";
@@ -208,6 +211,8 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
         <Stat label="Heat" value={<Dots n={recipe.spice} label="Spice" />} />
       </dl>
 
+      <NutritionCard recipe={recipe} />
+
       {/* Servings */}
       <section className="mx-5 mt-8 flex items-center justify-between">
         <div>
@@ -384,5 +389,73 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
       <dt className="eyebrow text-ink-3">{label}</dt>
       <dd className="text-[15px] font-medium tnum">{value}</dd>
     </div>
+  );
+}
+
+function NutritionCard({ recipe }: { recipe: Recipe }) {
+  const n = recipeNutrition(recipe).perServing;
+  const members = useFamily();
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const [day, setDay] = useState<Day>(() => todayDay());
+  const week = weekStart();
+  return (
+    <section className="mx-5 mt-4 rounded-2xl border border-line-2 bg-card p-4">
+      <div className="flex items-baseline justify-between">
+        <p className="eyebrow text-ink-3">Per serving · estimate</p>
+        <p className="font-display text-[26px] leading-none tnum">≈{Math.round(n.kcal)} kcal</p>
+      </div>
+      <dl className="mt-3 grid grid-cols-3 gap-2 text-center text-[12px] text-ink-2">
+        {(
+          [
+            ["Protein", n.protein],
+            ["Carbs", n.carbs],
+            ["Fat", n.fat],
+          ] as const
+        ).map(([k, v]) => (
+          <div key={k} className="rounded-xl bg-paper-2 py-2">
+            <dd className="text-[16px] font-semibold text-ink tnum">{Math.round(v)} g</dd>
+            <dt>{k}</dt>
+          </div>
+        ))}
+      </dl>
+      {done ? (
+        <p className="mt-3 flex items-center justify-between rounded-xl bg-leaf-soft/60 px-3 py-2.5 text-[13px]" role="status">
+          Added to {done}.
+          <Link href="/plan" className="font-medium underline underline-offset-2">
+            Open plan
+          </Link>
+        </p>
+      ) : !open ? (
+        <button onClick={() => setOpen(true)} className="press mt-3 w-full rounded-xl border border-line-2 py-2.5 text-[14px] font-medium">
+          + Add to meal plan
+        </button>
+      ) : (
+        <div className="mt-3">
+          <div className="no-scrollbar flex gap-1.5 overflow-x-auto" role="radiogroup" aria-label="Day">
+            {DAYS.map((d) => (
+              <button key={d} role="radio" aria-checked={day === d} onClick={() => setDay(d)} className={`press shrink-0 rounded-full border px-3 py-1.5 text-[13px] ${day === d ? "border-ink bg-ink text-paper" : "border-line-2"}`}>
+                {DAY_LABEL[d]} {dayDate(week, d).getDate()}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-1.5">
+            {MEALS.map((m) => (
+              <button
+                key={m}
+                onClick={() => {
+                  addDish(week, day, m, recipe, members);
+                  setDone(`${DAY_LABEL[day]} ${MEAL_LABEL[m].toLowerCase()}`);
+                  setOpen(false);
+                }}
+                className="press rounded-xl bg-paper-2 py-2.5 text-[13px] font-medium"
+              >
+                {MEAL_LABEL[m]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

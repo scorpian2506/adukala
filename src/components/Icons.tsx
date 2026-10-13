@@ -186,3 +186,9 @@ export const Bookmark = (p: P) => (
     <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
   </svg>
 );
+export const Calendar = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+    <path d="M3.5 10h17M8 3v4M16 3v4M8 14h2M14 14h2M8 17.5h2" />
+  </svg>
+);

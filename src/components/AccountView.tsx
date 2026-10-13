@@ -22,6 +22,8 @@ export function AccountView() {
 
       <section className="mx-4 mt-6 overflow-hidden rounded-[22px] border border-line-2 bg-card">
         {[
+          { href: "/family", label: "Family", hint: "Who you cook for, goals and calorie targets", icon: <User size={20} /> },
+          { href: "/plan", label: "Meal plan", hint: "Plan the week, see calories, shopping list", icon: <span className="font-display text-[18px]">7</span> },
           { href: "/settings", label: "Settings", hint: "Recipe converter, AI, voice", icon: <Gear size={20} /> },
           { href: "/guide", label: "Spoons, cups & flame guide", hint: "Kitchen basics for beginners", icon: <span className="font-display text-[18px]">½</span> },
         ].map((l) => (

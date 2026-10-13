@@ -54,7 +54,12 @@ export function SearchView() {
   return (
     <main className="app-min-h pb-32">
       <div className="safe-t sticky top-0 z-20 bg-paper/92 px-4 pb-3 backdrop-blur-md">
-        <h1 className="font-display px-1 text-[36px] leading-none">Search</h1>
+        <div className="flex items-center justify-between px-1">
+          <h1 className="font-display text-[36px] leading-none">Search</h1>
+          <Link href="/create" className="press inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-2 text-[12px] font-medium text-paper" aria-label="New recipe from YouTube">
+            <YouTube size={15} className="text-chilli" /> From YouTube
+          </Link>
+        </div>
         <div className="mt-3 flex items-center gap-2 rounded-2xl border border-line-2 bg-card px-3 focus-within:border-ink/50">
           <SearchIcon size={19} className="shrink-0 text-ink-3" />
           <input

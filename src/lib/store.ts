@@ -14,6 +14,7 @@ const KEYS = {
   progress: "adukala.progress.v1",
   marks: "adukala.marks.v1",
   deleted: "adukala.deleted.v1",
+  shared: "adukala.shared.v1", // members, plan slots, shopping ticks
 } as const;
 
 export interface Settings {
@@ -208,6 +209,43 @@ export function markedIds(marks: Record<string, Mark>, kind: MarkKind): string[]
     .map(([k]) => k.slice(kind.length + 1));
 }
 
+// ---------- shared household data: members, plan slots, shopping ticks ----------
+// One entry per item, each with its own timestamp, so edits on different phones merge.
+
+export type SharedKind = "member" | "plan" | "shop";
+export interface SharedEntry {
+  data?: unknown;
+  deleted?: boolean;
+  at: number;
+}
+const EMPTY_SHARED: Record<string, SharedEntry> = {};
+
+export function getShared(): Record<string, SharedEntry> {
+  return read<Record<string, SharedEntry>>(KEYS.shared, EMPTY_SHARED);
+}
+
+export function useShared(): Record<string, SharedEntry> {
+  return useSyncExternalStore(subscribe, getShared, () => EMPTY_SHARED);
+}
+
+export function putShared(kind: SharedKind, key: string, data: unknown) {
+  write(KEYS.shared, { ...getShared(), [`${kind}:${key}`]: { data, at: Date.now() } });
+  changed();
+}
+
+export function removeShared(kind: SharedKind, key: string) {
+  write(KEYS.shared, { ...getShared(), [`${kind}:${key}`]: { deleted: true, at: Date.now() } });
+  changed();
+}
+
+/** Live values of one kind, keyed by item key. */
+export function sharedOf<T>(all: Record<string, SharedEntry>, kind: SharedKind): Record<string, T> {
+  const out: Record<string, T> = {};
+  const prefix = `${kind}:`;
+  for (const [k, v] of Object.entries(all)) if (k.startsWith(prefix) && !v.deleted && v.data !== undefined) out[k.slice(prefix.length)] = v.data as T;
+  return out;
+}
+
 // ---------- sync hooks ----------
 // The account layer registers a listener; every change to shared data pings it.
 
@@ -231,6 +269,10 @@ export function localSyncItems(): SyncItem[] {
     const [kind, ...rest] = k.split(":");
     items.push({ kind: kind as MarkKind, key: rest.join(":"), deleted: !m.on, updatedAt: m.at });
   }
+  for (const [k, e] of Object.entries(getShared())) {
+    const i = k.indexOf(":");
+    items.push({ kind: k.slice(0, i) as SharedKind, key: k.slice(i + 1), data: e.deleted ? undefined : e.data, deleted: e.deleted, updatedAt: e.at });
+  }
   return items;
 }
 
@@ -238,6 +280,7 @@ export function clearSharedData() {
   write(KEYS.recipes, []);
   write(KEYS.deleted, {});
   write(KEYS.marks, {});
+  write(KEYS.shared, {});
 }
 
 /** Replace local shared data with the merged household set from the server. */
@@ -245,16 +288,19 @@ export function applySyncItems(items: SyncItem[]) {
   const recipes: Recipe[] = [];
   const deleted: Record<string, number> = {};
   const marks: Record<string, Mark> = {};
+  const shared: Record<string, SharedEntry> = {};
   for (const it of items) {
     if (it.kind === "recipe") {
       if (it.deleted) deleted[it.key] = it.updatedAt;
       else if (it.data) recipes.push({ ...(it.data as Recipe), updatedAt: it.updatedAt });
-    } else marks[`${it.kind}:${it.key}`] = { on: !it.deleted, at: it.updatedAt };
+    } else if (it.kind === "star" || it.kind === "pin") marks[`${it.kind}:${it.key}`] = { on: !it.deleted, at: it.updatedAt };
+    else shared[`${it.kind}:${it.key}`] = { data: it.deleted ? undefined : it.data, deleted: it.deleted, at: it.updatedAt };
   }
   recipes.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
   write(KEYS.recipes, recipes);
   write(KEYS.deleted, deleted);
   write(KEYS.marks, marks);
+  write(KEYS.shared, shared);
 }
 
 export function useSavedRecipes(): Recipe[] {
