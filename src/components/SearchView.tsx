@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SEED_RECIPES } from "@/lib/recipes";
+import { withSaved } from "@/lib/recipes";
 import { FACETS, searchRecipes, type Facet } from "@/lib/search";
 import { handoff, useSavedRecipes } from "@/lib/store";
 import { RecipeCard } from "./RecipeCard";
@@ -35,7 +35,7 @@ export function SearchView() {
     setLimit(30);
   }, [fParam, urlQ]);
 
-  const all = useMemo(() => [...saved, ...SEED_RECIPES], [saved]);
+  const all = useMemo(() => withSaved(saved), [saved]);
   const results = useMemo(() => searchRecipes(all, q, facets), [all, q, facets]);
 
   function sync(nextQ: string, nextF: Facet[]) {

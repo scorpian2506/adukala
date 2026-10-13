@@ -130,3 +130,23 @@ test("AI errors (bad key) point to settings", async ({ page }) => {
   await expect(page.getByRole("alert").filter({ hasText: "rejected the key" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Open settings/ })).toBeVisible();
 });
+
+test("a converted dish we already have can replace the library version, and be restored", async ({ page }) => {
+  await setStorage(page, { "adukala.settings.v1": { provider: "gemini", keys: { gemini: "k" }, models: {}, voice: false, listen: false } });
+  await stub(page, { video: video({ title: "Sambar | Amma's style", recipe: undefined, description: "" }) });
+  await page.route("**/api/chat", (r) => r.fulfill({ json: { message: "Ready", options: [], multiSelect: false, ready: true, dish: "Sambar" } }));
+  const sambar = SEED_RECIPES.find((r) => r.id === "sambar")!;
+  const composed = { ...sambar, id: "sambar-amma-1", name: "Sambar", blurb: "Amma's sambar from the video.", source: { kind: "youtube", url: "https://youtu.be/aaaaaaaaaaa" }, method: "ai" };
+  await page.route("**/api/compose", (r) => r.fulfill({ json: { recipe: composed } }));
+  await page.goto("/create");
+  await sendText(page, "https://youtu.be/aaaaaaaaaaa");
+  await expect(page.getByText(/You already have/)).toBeVisible();
+  await page.getByRole("button", { name: "Replace it" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Updated: Sambar in the library" })).toBeVisible();
+
+  await page.goto("/recipe/sambar");
+  await expect(page.getByText("Amma's sambar from the video.")).toBeVisible();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Restore library recipe" }).click();
+  await expect(page.getByText(sambar.blurb)).toBeVisible();
+});

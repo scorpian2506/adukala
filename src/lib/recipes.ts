@@ -1,10 +1,33 @@
 import { SEED_RECIPES } from "@/data/recipes";
+import { resolveRecipe, type CustomisationId } from "./tweaks";
 import type { Ingredient, Recipe, Step } from "./types";
 
 export { SEED_RECIPES };
 
+const SEED_BY_ID = new Map(SEED_RECIPES.map((r) => [r.id, r]));
+
 export function findSeed(id: string): Recipe | undefined {
-  return SEED_RECIPES.find((r) => r.id === id);
+  return SEED_BY_ID.get(id);
+}
+
+/**
+ * A recipe by id from saved recipes or the library, including rule-made versions ("sambar--low_oil").
+ * A saved recipe with a library id is the household's replacement for that dish, so it wins.
+ */
+export function findRecipe(id: string, saved: Recipe[] = []): Recipe | undefined {
+  return resolveRecipe(id, (x) => saved.find((r) => r.id === x) ?? SEED_BY_ID.get(x));
+}
+
+/** Saved recipes plus the library, with household replacements shown instead of the originals. */
+export function withSaved(saved: Recipe[]): Recipe[] {
+  if (!saved.length) return SEED_RECIPES;
+  const mine = new Set(saved.map((r) => r.id));
+  return [...saved, ...SEED_RECIPES.filter((r) => !mine.has(r.id))];
+}
+
+/** True when a saved recipe replaces the library dish with the same id. */
+export function replacesSeed(r: Recipe): boolean {
+  return SEED_BY_ID.has(r.id) && SEED_BY_ID.get(r.id) !== r;
 }
 
 export interface FlatStep extends Step {
@@ -41,53 +64,18 @@ export function ingredientMap(r: Recipe): Record<string, Ingredient> {
   return Object.fromEntries(r.ingredients.map((i) => [i.id, i]));
 }
 
-export const CUSTOMISATIONS = [
-  { id: "low_oil", label: "Low oil", hint: "Half the oil and ghee" },
-  { id: "high_protein", label: "High protein", hint: "More dal, paneer or chana" },
-  { id: "low_carb", label: "Low carb", hint: "Less rice, potato and sugar" },
-  { id: "kid_friendly", label: "Kid friendly", hint: "Mild, no whole spices to bite" },
-  { id: "less_spicy", label: "Less spicy", hint: "Half the chilli" },
-  { id: "jain", label: "Jain", hint: "No onion, garlic or root veg" },
-  { id: "vegan", label: "Vegan", hint: "No ghee, curd or paneer" },
-  { id: "diabetic", label: "Diabetic friendly", hint: "Low GI swaps, no sugar" },
-] as const;
-
-export type CustomisationId = (typeof CUSTOMISATIONS)[number]["id"];
-
-/** Tweaks we can make without AI: they only scale tagged ingredients. */
-export const OFFLINE_CUSTOMISATIONS: CustomisationId[] = ["low_oil", "less_spicy", "kid_friendly"];
-
-export function applyOfflineTweaks(r: Recipe, ids: CustomisationId[]): Recipe {
-  const factor: Record<string, number> = {};
-  for (const ing of r.ingredients) {
-    let f = 1;
-    if (ids.includes("low_oil") && ing.tag === "oil") f *= 0.5;
-    if ((ids.includes("less_spicy") || ids.includes("kid_friendly")) && ing.tag === "chilli") {
-      f *= ids.includes("kid_friendly") ? 0.25 : 0.5;
-    }
-    factor[ing.id] = f;
-  }
-  // Whole items (a green chilli) can't be quartered: round down, and drop them at zero.
-  const scale = (qty: number, unit: string, f: number) => (unit === "pc" && f < 1 ? Math.floor(qty * f) : qty * f);
-  const scaleSteps = (steps: Step[]) =>
-    steps.flatMap((s) => {
-      if (!s.items) return [s];
-      const items = s.items.map((it) => ({ ...it, qty: scale(it.qty, it.unit, factor[it.ingredient] ?? 1) })).filter((it) => it.qty > 0);
-      // A step that only handled a removed ingredient ("Slit the green chilli") goes too.
-      if (!items.length && ["chop", "measure", "add", "grind"].includes(s.kind)) return [];
-      return [{ ...s, items: items.length ? items : undefined }];
-    });
-  const labels = CUSTOMISATIONS.filter((c) => ids.includes(c.id)).map((c) => c.label);
-  return {
-    ...r,
-    id: `${r.id}--${ids.join("-")}`,
-    ingredients: r.ingredients.map((i) => ({ ...i, qty: scale(i.qty, i.unit, factor[i.id] ?? 1) })).filter((i) => i.qty > 0),
-    prep: scaleSteps(r.prep),
-    cook: scaleSteps(r.cook),
-    variant: [...new Set([...(r.variant ?? []), ...labels])],
-    source: { ...(r.source ?? { kind: "seed" }), kind: r.source?.kind ?? "seed" },
-  };
-}
+export {
+  CUSTOMISATIONS,
+  OFFLINE_CUSTOMISATIONS,
+  applyOfflineTweaks,
+  canonicalTweaks,
+  parseVariantId,
+  resolveRecipe,
+  tweakRecipe,
+  variantId,
+  versionOf,
+  type CustomisationId,
+} from "./tweaks";
 
 export function slugify(s: string) {
   return s
@@ -165,6 +153,8 @@ export function parseOfflineTweak(text: string): { servings?: number; tweaks: Cu
   if (/(less|low|reduce|cut|no extra)\s*(the\s*)?(oil|ghee|fat)/.test(t)) tweaks.push("low_oil");
   if (/(less|mild|not|low|reduce)\s*(too\s*)?(spic|chilli|hot|heat)/.test(t)) tweaks.push("less_spicy");
   if (/(kid|child|toddler|baby)/.test(t)) tweaks.push("kid_friendly");
+  if (/(more|high|extra|increase)\s*(in\s*)?protein/.test(t)) tweaks.push("high_protein");
+  if (/(less|low|reduce|cut|fewer)\s*(the\s*)?(carbs?|rice|sugar)/.test(t)) tweaks.push("low_carb");
   const servings = n && (n[2] || /^\s*(for\s+)?\d{1,2}\s*$/.test(t)) ? Number(n[1]) : undefined;
   return { servings: servings && servings > 0 && servings <= 20 ? servings : undefined, tweaks };
 }

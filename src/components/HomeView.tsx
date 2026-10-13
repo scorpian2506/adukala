@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { SEED_RECIPES, flattenSteps, stepNumberAt } from "@/lib/recipes";
+import { SEED_RECIPES, findRecipe, flattenSteps, stepNumberAt, withSaved } from "@/lib/recipes";
 import { aiReady, handoff, markedIds, useMarks, useProgressMap, useSavedRecipes, useSettings } from "@/lib/store";
 import type { Recipe } from "@/lib/types";
-import { Wordmark } from "./Wordmark";
+import { Logo } from "./Logo";
 import { RecipeCard, HUE_BG } from "./RecipeCard";
 import { DishArt } from "./DishArt";
 import { ArrowRight, Gear, YouTube, ChevronRight, SearchIcon, Pin, Plus } from "./Icons";
@@ -26,15 +26,15 @@ export function HomeView() {
   const marks = useMarks();
   const [link, setLink] = useState("");
 
-  const all = useMemo(() => [...saved, ...SEED_RECIPES], [saved]);
+  const all = useMemo(() => withSaved(saved), [saved]);
 
   const resume = useMemo(() => {
     const latest = Object.values(progress).sort((a, b) => b.updatedAt - a.updatedAt)[0];
     if (!latest) return null;
-    const recipe = all.find((r) => r.id === latest.recipeId);
+    const recipe = findRecipe(latest.recipeId, saved);
     if (!recipe) return null;
     return { recipe, step: stepNumberAt(recipe, latest.index), total: flattenSteps(recipe).length };
-  }, [progress, all]);
+  }, [progress, saved]);
 
   const byId = useMemo(() => new Map(all.map((r) => [r.id, r])), [all]);
   const pinned = markedIds(marks, "pin").map((id) => byId.get(id)).filter((r): r is Recipe => !!r);
@@ -59,7 +59,7 @@ export function HomeView() {
   return (
     <main className="app-min-h relative pb-32">
       <header className="safe-t sticky top-0 z-20 flex items-center justify-between bg-paper/85 px-5 pb-3 backdrop-blur-md">
-        <Wordmark className="text-[30px]" />
+        <Logo className="text-[30px]" />
         <div className="flex items-center gap-2">
         <Link href="/create" className="press grid h-10 w-10 place-items-center rounded-full bg-ink text-paper" aria-label="New recipe from YouTube">
           <Plus size={20} />
@@ -253,7 +253,7 @@ export function HomeView() {
       </section>
 
       <footer className="px-5 pt-10 text-[12px] text-ink-3">
-        <Wordmark className="text-[22px]" />
+        <Logo className="text-[22px]" />
         <p className="mt-2">
           <em>Adukala</em> is Malayalam for kitchen. Made for people who&rsquo;ve never cooked, and the people who feed them.
         </p>

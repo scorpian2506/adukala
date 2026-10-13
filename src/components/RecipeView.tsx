@@ -2,21 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import {
-  CUSTOMISATIONS,
-  OFFLINE_CUSTOMISATIONS,
-  applyOfflineTweaks,
-  flattenSteps,
-  stepNumberAt,
-  type CustomisationId,
-} from "@/lib/recipes";
-import { aiHeaders, aiReady, deleteRecipe, getProgress, isMarked, saveProgress, saveRecipe, toggleMark, useMarks, useSettings } from "@/lib/store";
+import { useMemo, useState } from "react";
+import { CUSTOMISATIONS, OFFLINE_CUSTOMISATIONS, flattenSteps, replacesSeed, stepNumberAt, tweakRecipe, type CustomisationId } from "@/lib/recipes";
+import { aiHeaders, aiReady, deleteRecipe, getProgress, isMarked, saveProgress, saveRecipe, toggleMark, useMarks, useSavedRecipes, useSettings } from "@/lib/store";
 import { useRecipe } from "@/lib/useRecipe";
 import { EQUIPMENT_LABEL, KIND_LABEL, REGION_LABEL, formatQty, totalMinutes } from "@/lib/format";
 import type { Ingredient, Recipe } from "@/lib/types";
 import { recipeNutrition } from "@/lib/nutrition";
-import { addDish, useFamily } from "@/lib/household";
+import { addDish, useFamily, useMe } from "@/lib/household";
+import { GOALS, usualTweaks } from "@/lib/family";
 import { DAYS, DAY_LABEL, MEALS, MEAL_LABEL, dayDate, todayDay, weekStart, type Day } from "@/lib/planner";
 import { DishArt } from "./DishArt";
 import { Dots, HUE_BG } from "./RecipeCard";
@@ -47,20 +41,31 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const starred = isMarked(marks, "star", recipe.id);
   const pinned = isMarked(marks, "pin", recipe.id);
   const [servings, setServings] = useState(() => getProgress(recipe.id)?.servings ?? recipe.servings);
-  const [mods, setMods] = useState<CustomisationId[]>([]);
+  const saved = useSavedRecipes();
+  const me = useMe();
+  // Your usual tweaks are ticked until you change them (not on a version that already has its own).
+  const defaults = recipe.variant?.length ? [] : usualTweaks(me);
+  const [picked, setPicked] = useState<CustomisationId[] | null>(null);
+  const mods = picked ?? defaults;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSteps, setShowSteps] = useState(false);
 
+  const offlineKey = mods.filter((m) => OFFLINE_CUSTOMISATIONS.includes(m)).join(",");
+  const tweak = useMemo(() => tweakRecipe(recipe, offlineKey ? (offlineKey.split(",") as CustomisationId[]) : []), [recipe, offlineKey]);
+  /** What you'll actually cook: the recipe with the rule-based tweaks applied. */
+  const view = tweak.recipe;
+  const before = new Map(recipe.ingredients.map((i) => [i.id, i.qty]));
+
   const factor = servings / recipe.servings;
-  const steps = flattenSteps(recipe);
-  const progress = getProgress(recipe.id);
-  const isSaved = recipe.source?.kind !== "seed" || !!recipe.variant?.length;
+  const steps = flattenSteps(view);
+  const progress = getProgress(view.id);
+  const isSaved = saved.some((r) => r.id === recipe.id);
 
   // Imported recipes keep the creator's own sections ("For the masala paste").
-  const bySection = recipe.ingredients.some((i) => i.section);
+  const bySection = view.ingredients.some((i) => i.section);
   const groupList: { label: string; items: Ingredient[] }[] = [];
-  for (const ing of recipe.ingredients) {
+  for (const ing of view.ingredients) {
     const label = bySection ? (ing.section ?? "Other") : GROUP_LABEL[ing.group ?? "main"];
     const g = groupList.find((x) => x.label === label) ?? groupList[groupList.push({ label, items: [] }) - 1];
     g.items.push(ing);
@@ -74,18 +79,21 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
 
   function toggle(m: CustomisationId) {
     setError(null);
-    setMods((cur) => (cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m]));
+    setPicked((cur) => {
+      const list = cur ?? defaults;
+      return list.includes(m) ? list.filter((x) => x !== m) : [...list, m];
+    });
+  }
+
+  function saveVersion() {
+    saveRecipe(view);
+    router.push(`/recipe/${view.id}`);
   }
 
   async function makeVersion() {
     if (!mods.length) return;
     setError(null);
-    if (!needsAI) {
-      const v = applyOfflineTweaks(recipe, mods);
-      saveRecipe(v);
-      router.push(`/recipe/${v.id}`);
-      return;
-    }
+    if (!needsAI) return saveVersion();
     if (!aiReady(settings)) {
       setError("key");
       return;
@@ -110,9 +118,9 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   }
 
   function start(fresh: boolean) {
-    if (fresh || !progress) saveProgress({ recipeId: recipe.id, servings, index: 0 });
+    if (fresh || !progress) saveProgress({ recipeId: view.id, servings, index: 0 });
     else saveProgress({ ...progress, servings });
-    router.push(`/cook/${recipe.id}`);
+    router.push(`/cook/${view.id}`);
   }
 
   if (busy) return <CookingLoader title={`Making your ${recipe.name}`} lines={["Reading the recipe", "Adjusting every quantity", "Re-timing the steps", "Checking it still tastes right"]} />;
@@ -143,13 +151,15 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
               {isSaved && (
                 <button
                   onClick={() => {
-                    if (confirm("Delete this recipe?")) {
+                    if (replacesSeed(recipe)) {
+                      if (confirm("Go back to the original library recipe?")) deleteRecipe(recipe.id);
+                    } else if (confirm("Delete this recipe?")) {
                       deleteRecipe(recipe.id);
                       router.replace("/");
                     }
                   }}
                   className="press grid h-10 w-10 place-items-center rounded-full bg-card/70"
-                  aria-label="Delete recipe"
+                  aria-label={replacesSeed(recipe) ? "Restore library recipe" : "Delete recipe"}
                 >
                   <Trash size={18} />
                 </button>
@@ -211,7 +221,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
         <Stat label="Heat" value={<Dots n={recipe.spice} label="Spice" />} />
       </dl>
 
-      <NutritionCard recipe={recipe} />
+      <NutritionCard recipe={view} base={view === recipe ? undefined : recipe} />
 
       {/* Servings */}
       <section className="mx-5 mt-8 flex items-center justify-between">
@@ -237,7 +247,19 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
       <section className="mt-8">
         <div className="px-5">
           <h2 className="font-display text-[28px] leading-none">Make it yours</h2>
-          <p className="mt-1 text-[13px] text-ink-3">Pick any. We rewrite the quantities and steps.</p>
+          <p className="mt-1 text-[13px] text-ink-3">
+            {picked === null && defaults.length ? (
+              <>
+                Ticked from{" "}
+                <Link href="/family" className="underline underline-offset-2">
+                  your profile
+                </Link>
+                {me ? ` (${GOALS.find((g) => g.id === me.goal)?.label.toLowerCase()})` : ""}. Untick anything for this dish.
+              </>
+            ) : (
+              "Pick any. The quantities below change straight away."
+            )}
+          </p>
         </div>
         <div className="mt-4 flex flex-wrap gap-2 px-5">
           {CUSTOMISATIONS.map((c) => {
@@ -246,36 +268,71 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
               <button
                 key={c.id}
                 onClick={() => toggle(c.id)}
+                aria-pressed={on}
                 className={`press inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] ${on ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-2"}`}
               >
                 {on && <Check size={14} />}
                 {c.label}
+                {!OFFLINE_CUSTOMISATIONS.includes(c.id) && <span className={`text-[10px] uppercase tracking-wide ${on ? "text-paper/60" : "text-ink-3"}`}>AI</span>}
               </button>
             );
           })}
         </div>
         {mods.length > 0 && (
-          <div className="mx-5 mt-4 animate-rise rounded-2xl bg-paper-2 p-4">
-            <p className="text-[13px] leading-snug text-ink-2">
-              {CUSTOMISATIONS.filter((c) => mods.includes(c.id))
-                .map((c) => c.hint)
-                .join(". ")}
-              .
-            </p>
+          <div className="mx-5 mt-4 animate-rise rounded-2xl bg-paper-2 p-4" aria-live="polite">
+            {tweak.changes.length > 0 && (
+              <>
+                <p className="eyebrow text-ink-3">What changed</p>
+                <ul className="mt-1.5 space-y-1 text-[13px] text-ink-2" data-testid="tweak-changes">
+                  {tweak.changes.map((c) => (
+                    <li key={c.name} className="flex justify-between gap-3">
+                      <span className="min-w-0 truncate">{c.name}</span>
+                      <span className="shrink-0 font-mono tnum">
+                        {c.to === 0 ? "left out" : `${formatQty(c.from * factor, c.unit)} → ${formatQty(c.to * factor, c.unit)}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {mods
+              .filter((m) => tweak.notes[m])
+              .map((m) => (
+                <p key={m} className="mt-2 text-[13px] leading-snug text-ink-2">
+                  <span className="font-medium text-ink">{CUSTOMISATIONS.find((c) => c.id === m)?.label}:</span> {tweak.notes[m]}
+                </p>
+              ))}
+            {needsAI && (
+              <p className="mt-2 text-[13px] leading-snug text-ink-2">
+                {CUSTOMISATIONS.filter((c) => mods.includes(c.id) && !OFFLINE_CUSTOMISATIONS.includes(c.id))
+                  .map((c) => c.hint)
+                  .join(". ")}
+                . This one needs AI to rewrite the steps.
+              </p>
+            )}
             {error === "key" ? (
               <p className="mt-3 text-[13px] text-chilli">
-                {`High protein, low carb, Jain, vegan and diabetic need AI to rewrite the recipe. `}
+                {`Jain, vegan and diabetic friendly need AI to rewrite the recipe. `}
                 <Link href="/settings" className="underline underline-offset-2">
                   Connect a free AI
                 </Link>
-                {` (Gemini or Groq), or pick only Low oil, Less spicy or Kid friendly.`}
+                {` (Gemini or Groq), or untick them — low oil, high protein, low carb, less spicy and kid friendly work without AI.`}
               </p>
             ) : error ? (
               <p className="mt-3 text-[13px] text-chilli">{error}</p>
             ) : null}
-            <button onClick={makeVersion} className="press mt-3 inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-[14px] font-medium text-paper">
-              Make my version <ArrowRight size={16} />
-            </button>
+            {needsAI ? (
+              <button onClick={makeVersion} className="press mt-3 inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-[14px] font-medium text-paper">
+                Make my version with AI <ArrowRight size={16} />
+              </button>
+            ) : view !== recipe ? (
+              <p className="mt-3 flex items-center justify-between gap-3 text-[12px] text-ink-3">
+                Start cooking below uses this version.
+                <button onClick={saveVersion} className="press shrink-0 rounded-full border border-line-2 bg-card px-3 py-1.5 text-[13px] font-medium text-ink">
+                  Save to my recipes
+                </button>
+              </p>
+            ) : null}
           </div>
         )}
       </section>
@@ -305,7 +362,10 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
           <div key={g.label} className="mt-5">
             <p className="eyebrow text-ink-3">{g.label}</p>
             <ul className="mt-1">
-              {g.items.map((ing) => (
+              {g.items.map((ing) => {
+                const was = before.get(ing.id);
+                const changed = view !== recipe && was !== undefined && Math.abs(was - ing.qty) > 1e-6;
+                return (
                 <li key={ing.id} className="flex items-baseline justify-between gap-4 border-b border-line py-3">
                   <div className="min-w-0">
                     <p className="text-[15px] text-ink">
@@ -316,9 +376,13 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                       <p className="mt-0.5 text-[12px] text-ink-3">{[ing.native, ing.approx].filter(Boolean).join(" · ")}</p>
                     )}
                   </div>
-                  <span className="shrink-0 font-mono text-[14px] text-ink tnum">{formatQty(ing.qty * factor, ing.unit)}</span>
+                  <span className="shrink-0 text-right font-mono text-[14px] text-ink tnum">
+                    {formatQty(ing.qty * factor, ing.unit)}
+                    {changed && <span className="block text-[11px] text-ink-3 line-through">{formatQty(was! * factor, ing.unit)}</span>}
+                  </span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </div>
         ))}
@@ -331,7 +395,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
           <span className="text-[13px] text-ink-2 underline underline-offset-4">{showSteps ? "Hide" : `Preview all ${steps.length}`}</span>
         </button>
         <p className="mt-1 text-[13px] text-ink-3">
-          {recipe.prep.length} to get ready · {recipe.cook.length} at the stove
+          {view.prep.length} to get ready · {view.cook.length} at the stove
         </p>
         {showSteps && (
           <ol className="mt-4 animate-fade">
@@ -363,14 +427,14 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
               Restart
             </button>
             <button onClick={() => start(false)} className="press flex flex-1 items-center justify-between rounded-[20px] bg-ink px-6 py-5 text-paper">
-              <span className="text-[17px] font-medium">Resume · step {stepNumberAt(recipe, progress.index)}</span>
+              <span className="text-[17px] font-medium">Resume · step {stepNumberAt(view, progress.index)}</span>
               <ArrowRight />
             </button>
           </div>
         ) : (
           <button onClick={() => start(true)} className="press flex w-full items-center justify-between rounded-[20px] bg-ink px-6 py-5 text-paper">
             <span className="text-left">
-              <span className="block text-[17px] font-medium">Start cooking</span>
+              <span className="block text-[17px] font-medium">Start cooking{tweak.applied.length ? " my version" : ""}</span>
               <span className="block text-[12px] text-paper/60">
                 {steps.length} steps · about {totalMinutes(recipe)} min
               </span>
@@ -392,8 +456,9 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function NutritionCard({ recipe }: { recipe: Recipe }) {
+function NutritionCard({ recipe, base }: { recipe: Recipe; base?: Recipe }) {
   const n = recipeNutrition(recipe).perServing;
+  const b = base ? recipeNutrition(base).perServing : undefined;
   const members = useFamily();
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState<string | null>(null);
@@ -403,21 +468,28 @@ function NutritionCard({ recipe }: { recipe: Recipe }) {
     <section className="mx-5 mt-4 rounded-2xl border border-line-2 bg-card p-4">
       <div className="flex items-baseline justify-between">
         <p className="eyebrow text-ink-3">Per serving · estimate</p>
-        <p className="font-display text-[26px] leading-none tnum">≈{Math.round(n.kcal)} kcal</p>
+        <p className="font-display text-[26px] leading-none tnum">
+          {b && Math.round(b.kcal) !== Math.round(n.kcal) && <span className="mr-1.5 text-[16px] text-ink-3 line-through">{Math.round(b.kcal)}</span>}≈{Math.round(n.kcal)} kcal
+        </p>
       </div>
       <dl className="mt-3 grid grid-cols-3 gap-2 text-center text-[12px] text-ink-2">
         {(
           [
-            ["Protein", n.protein],
-            ["Carbs", n.carbs],
-            ["Fat", n.fat],
+            ["Protein", n.protein, b?.protein],
+            ["Carbs", n.carbs, b?.carbs],
+            ["Fat", n.fat, b?.fat],
           ] as const
-        ).map(([k, v]) => (
-          <div key={k} className="rounded-xl bg-paper-2 py-2">
-            <dd className="text-[16px] font-semibold text-ink tnum">{Math.round(v)} g</dd>
-            <dt>{k}</dt>
-          </div>
-        ))}
+        ).map(([k, v, was]) => {
+          const d = was === undefined ? 0 : Math.round(v) - Math.round(was);
+          return (
+            <div key={k} className="rounded-xl bg-paper-2 py-2">
+              <dd className="text-[16px] font-semibold text-ink tnum">
+                {Math.round(v)} g{d !== 0 && <span className={`ml-1 text-[11px] font-medium ${(k === "Protein" ? d > 0 : d < 0) ? "text-leaf" : "text-chilli"}`}>{d > 0 ? `+${d}` : d}</span>}
+              </dd>
+              <dt>{k}</dt>
+            </div>
+          );
+        })}
       </dl>
       {done ? (
         <p className="mt-3 flex items-center justify-between rounded-xl bg-leaf-soft/60 px-3 py-2.5 text-[13px]" role="status">

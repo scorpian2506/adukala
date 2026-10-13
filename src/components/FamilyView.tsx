@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ACTIVITY, GOALS, dailyTarget, newMemberId, type Member } from "@/lib/family";
+import { ACTIVITY, GOALS, bmi, calorieTable, dailyTarget, needsBody, newMemberId, rateOf, usualTweaks, type Member } from "@/lib/family";
+import { CUSTOMISATIONS, OFFLINE_CUSTOMISATIONS, type CustomisationId } from "@/lib/tweaks";
 import { deleteMember, nextColor, saveMember, useFamily } from "@/lib/household";
 import { useHydrated } from "@/lib/useRecipe";
 import { useAccount } from "@/lib/account";
@@ -52,8 +53,9 @@ export function FamilyView() {
                       {m.name} {m.username && <span className="text-[12px] font-normal text-ink-3">@{m.username}</span>}
                     </span>
                     <span className="block text-[12px] text-ink-3">
-                      {m.kind === "child" ? `Child · ${m.age} yrs` : `${GOALS.find((g) => g.id === m.goal)?.label} · ${m.age} yrs`} · {m.diet === "veg" ? "Veg" : m.diet === "egg" ? "Eggetarian" : "Non-veg"}
+                      {m.kind === "child" ? `Child · ${m.age} yrs` : `${goalLabel(m)} · ${m.age} yrs`} · {m.diet === "veg" ? "Veg" : m.diet === "egg" ? "Eggetarian" : "Non-veg"}
                     </span>
+                    {needsBody(m) && <span className="mt-1 inline-block rounded-full bg-turmeric-soft px-2 py-0.5 text-[11px] font-medium text-ink">Add height &amp; weight</span>}
                   </span>
                   <span className="text-right">
                     <span className="font-display block text-[22px] leading-none tnum">{t.kcal}</span>
@@ -86,6 +88,14 @@ export function FamilyView() {
   );
 }
 
+function goalLabel(m: Member) {
+  const r = rateOf(m);
+  const pace = r === 0.25 ? "¼" : r === 0.5 ? "½" : String(r);
+  if (m.goal === "lose") return `Lose ${pace} kg/wk`;
+  if (m.goal === "gain") return `Gain ${pace} kg/wk`;
+  return GOALS.find((g) => g.id === m.goal)?.label ?? "";
+}
+
 function Seg<T extends string>({ value, options, onChange, label }: { value: T; options: { id: T; label: string }[]; onChange: (v: T) => void; label: string }) {
   return (
     <div role="radiogroup" aria-label={label} className="mt-1 flex flex-wrap gap-1.5">
@@ -111,6 +121,11 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
   const num = (v: string) => (v.trim() === "" ? undefined : Math.max(0, Number(v)));
   const t = dailyTarget(m);
   const child = m.kind === "child";
+  const missingBody = !child && (!m.heightCm || !m.weightKg);
+  const body = bmi(m);
+  const table = !child && !missingBody ? calorieTable(m) : [];
+  const tweaks = usualTweaks(m);
+  const toggleTweak = (id: CustomisationId) => set("tweaks", tweaks.includes(id) ? tweaks.filter((x) => x !== id) : [...tweaks, id]);
 
   return (
     <div className="absolute inset-0 z-50 flex flex-col justify-end bg-ink/40 animate-fade" onClick={onClose} role="dialog" aria-modal="true" aria-label={isNew ? "Add family member" : `Edit ${member.name}`}>
@@ -118,7 +133,7 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
-          if (!m.name.trim()) return;
+          if (!m.name.trim() || missingBody) return;
           saveMember({ ...m, name: m.name.trim(), goal: child ? "maintain" : m.goal });
           onClose();
         }}
@@ -139,13 +154,19 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
           </label>
           <label className="text-[13px] font-medium text-ink-2">
             Height cm
-            <input inputMode="numeric" value={m.heightCm ?? ""} onChange={(e) => set("heightCm", num(e.target.value))} aria-label="Height in cm" placeholder="opt." className="mt-1 w-full rounded-2xl border border-line-2 bg-card px-3 py-3 text-[16px] focus:outline-none" />
+            <input inputMode="numeric" value={m.heightCm ?? ""} onChange={(e) => set("heightCm", num(e.target.value))} aria-label="Height in cm" placeholder={child ? "opt." : ""} className="mt-1 w-full rounded-2xl border border-line-2 bg-card px-3 py-3 text-[16px] focus:outline-none" />
           </label>
           <label className="text-[13px] font-medium text-ink-2">
             Weight kg
-            <input inputMode="decimal" value={m.weightKg ?? ""} onChange={(e) => set("weightKg", num(e.target.value))} aria-label="Weight in kg" placeholder="opt." className="mt-1 w-full rounded-2xl border border-line-2 bg-card px-3 py-3 text-[16px] focus:outline-none" />
+            <input inputMode="decimal" value={m.weightKg ?? ""} onChange={(e) => set("weightKg", num(e.target.value))} aria-label="Weight in kg" placeholder={child ? "opt." : ""} className="mt-1 w-full rounded-2xl border border-line-2 bg-card px-3 py-3 text-[16px] focus:outline-none" />
           </label>
         </div>
+        {missingBody && <p className="mt-2 text-[12px] text-chilli">Height and weight are needed to work out calories for an adult.</p>}
+        {body && (
+          <p className="mt-2 text-[12px] text-ink-3 tnum">
+            BMI {body.value} · <span className={body.label === "Healthy" ? "text-leaf" : "text-chilli"}>{body.label}</span> · healthy weight for this height {body.healthy[0]}–{body.healthy[1]} kg
+          </p>
+        )}
 
         <p className="mt-4 text-[13px] font-medium text-ink-2">Sex</p>
         <Seg label="Sex" value={m.sex} onChange={(v) => set("sex", v)} options={[{ id: "female", label: child ? "Girl" : "Female" }, { id: "male", label: child ? "Boy" : "Male" }]} />
@@ -155,10 +176,52 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
 
         {!child && (
           <>
-            <p className="mt-4 text-[13px] font-medium text-ink-2">Goal</p>
-            <Seg label="Goal" value={m.goal} onChange={(v) => set("goal", v)} options={GOALS.map((g) => ({ id: g.id, label: g.label }))} />
             <p className="mt-4 text-[13px] font-medium text-ink-2">Activity</p>
             <Seg label="Activity" value={m.activity} onChange={(v) => set("activity", v)} options={ACTIVITY.map((a) => ({ id: a.id, label: a.label }))} />
+            <p className="mt-1 text-[12px] text-ink-3">{ACTIVITY.find((a) => a.id === m.activity)?.hint}</p>
+
+            <p className="mt-4 text-[13px] font-medium text-ink-2">Goal · calories a day</p>
+            {table.length ? (
+              <div role="radiogroup" aria-label="Goal" className="mt-1 overflow-hidden rounded-2xl border border-line-2 bg-card">
+                {table.map((row) => {
+                  const on = m.goal === row.goal && (row.goal === "maintain" || rateOf(m) === row.rateKg);
+                  return (
+                    <button
+                      key={row.label}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setM((x) => ({ ...x, goal: row.goal, rateKg: row.rateKg || undefined, tweaks: x.tweaks }))}
+                      className={`press flex w-full items-center justify-between gap-3 border-b border-line px-3.5 py-2.5 text-left last:border-b-0 ${on ? "bg-ink text-paper" : ""}`}
+                    >
+                      <span className="text-[14px]">{row.label}</span>
+                      <span className="shrink-0 font-mono text-[13px] tnum">
+                        {row.kcal.toLocaleString("en-IN")} kcal <span className={on ? "text-paper/60" : "text-ink-3"}>{row.floored ? "min" : `${row.pct}%`}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <Seg label="Goal" value={m.goal} onChange={(v) => set("goal", v)} options={GOALS.map((g) => ({ id: g.id, label: g.label }))} />
+            )}
+            {table.some((r) => r.floored) && <p className="mt-1.5 text-[12px] text-ink-3">Rows marked “min” are at the safe minimum ({m.sex === "male" ? "1,500" : "1,200"} kcal) — losing faster than that needs a doctor&rsquo;s advice.</p>}
+
+            {m.username && (<>
+            <p className="mt-4 text-[13px] font-medium text-ink-2">Usual recipe tweaks</p>
+            <div className="mt-1 flex flex-wrap gap-1.5" role="group" aria-label="Usual recipe tweaks">
+              {CUSTOMISATIONS.filter((c) => OFFLINE_CUSTOMISATIONS.includes(c.id)).map((c) => {
+                const on = tweaks.includes(c.id);
+                return (
+                  <button key={c.id} type="button" aria-pressed={on} onClick={() => toggleTweak(c.id)} className={`press inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[13px] ${on ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-2"}`}>
+                    {on && <Check size={13} />}
+                    {c.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-[12px] text-ink-3">Ticked for @{m.username} whenever they open a recipe or plan a dish — untick any time.</p>
+            </>)}
           </>
         )}
 
@@ -167,7 +230,10 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
           <p className="font-display mt-1 text-[34px] leading-none tnum">
             {t.kcal} <span className="text-[16px] opacity-70">kcal</span> · {t.protein} <span className="text-[16px] opacity-70">g protein</span>
           </p>
-          <p className="mt-1 text-[12px] text-paper/60">{t.basis}</p>
+          <p className="mt-1 text-[12px] text-paper/60">
+            {t.maintain && t.maintain !== t.kcal ? `${t.maintain.toLocaleString("en-IN")} kcal keeps your weight · ` : ""}
+            {t.basis}
+          </p>
         </div>
 
         <div className="mt-4 flex gap-2 pb-2">
@@ -186,7 +252,7 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
               <Trash size={18} />
             </button>
           )}
-          <button disabled={!m.name.trim()} className="press flex flex-1 items-center justify-center gap-2 rounded-2xl bg-ink py-4 text-[15px] font-medium text-paper disabled:opacity-40">
+          <button disabled={!m.name.trim() || missingBody} className="press flex flex-1 items-center justify-center gap-2 rounded-2xl bg-ink py-4 text-[15px] font-medium text-paper disabled:opacity-40">
             <Check size={18} /> Save
           </button>
         </div>

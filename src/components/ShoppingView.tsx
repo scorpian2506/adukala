@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { SEED_RECIPES } from "@/lib/recipes";
+import { findRecipe } from "@/lib/recipes";
 import { useSavedRecipes } from "@/lib/store";
 import { clearShop, toggleShop, usePlanWeek, useShopChecks } from "@/lib/household";
 import { CATEGORY_LABEL, shoppingList, type ShopLine } from "@/lib/nutrition";
@@ -21,7 +21,7 @@ export function ShoppingView() {
   const [showPantry, setShowPantry] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const byId = useMemo(() => new Map([...saved, ...SEED_RECIPES].map((r) => [r.id, r])), [saved]);
+  const byId = useMemo(() => ({ get: (id: string) => findRecipe(id, saved) }), [saved]);
   const entries = useMemo(() => {
     const slots = DAYS.flatMap((d) => MEALS.map((m) => plan[`${d}:${m}`]).filter((s): s is Slot => !!s));
     return [...servingsByRecipe(slots).entries()].flatMap(([id, n]) => (byId.get(id) ? [{ recipe: byId.get(id)!, servings: n }] : []));

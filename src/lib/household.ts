@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo } from "react";
 import { useAccount } from "./account";
-import { MEMBER_COLORS, defaultPortion, eats, memberForUser, type Member } from "./family";
-import { DAYS, MEALS, slotKey, type Day, type Meal, type Slot } from "./planner";
+import { MEMBER_COLORS, dailyTarget, defaultPortion, eats, memberForUser, type Member } from "./family";
+import { DAYS, MEALS, fitPortions, slotKey, type Day, type Meal, type Nutrients, type Slot } from "./planner";
 import { getShared, putShared, removeShared, sharedOf, useShared } from "./store";
 import type { Recipe } from "./types";
 
@@ -32,6 +32,14 @@ export function useFamily(): Member[] {
   }, [logins]);
 
   return members;
+}
+
+/** The signed-in person's own profile, if any. */
+export function useMe(): Member | undefined {
+  const members = useFamily();
+  const acct = useAccount();
+  const username = acct.status === "in" ? acct.user?.username : undefined;
+  return username ? members.find((m) => m.id === `user:${username}`) : undefined;
 }
 
 export function saveMember(m: Member) {
@@ -79,9 +87,27 @@ export function addDish(week: string, day: Day, meal: Meal, recipe: Recipe, memb
   setSlot(week, day, meal, { dishes: [...slot.dishes, { recipeId: recipe.id, portions }] });
 }
 
-export function updateDish(week: string, day: Day, meal: Meal, recipeId: string, portions: Record<string, number>) {
+/** Change a planned dish's portions, or swap it for another version (e.g. "sambar--low_oil"). */
+export function updateDish(week: string, day: Day, meal: Meal, recipeId: string, portions: Record<string, number>, newRecipeId = recipeId) {
   const slot = currentSlot(week, day, meal);
-  setSlot(week, day, meal, { dishes: slot.dishes.map((d) => (d.recipeId === recipeId ? { ...d, portions } : d)) });
+  const clash = newRecipeId !== recipeId && slot.dishes.some((d) => d.recipeId === newRecipeId);
+  const dishes = slot.dishes.flatMap((d) => (d.recipeId === recipeId ? (clash ? [] : [{ ...d, recipeId: newRecipeId, portions }]) : d.recipeId === newRecipeId && clash ? [{ ...d, portions }] : [d]));
+  setSlot(week, day, meal, { dishes });
+}
+
+/** Set everyone's portions on these days so their meals add up to their daily target. */
+export function fitDays(week: string, days: readonly Day[], members: Member[], perServing: (recipeId: string) => Nutrients | null) {
+  const targets = Object.fromEntries(members.map((m) => [m.id, dailyTarget(m).kcal]));
+  const all = sharedOf<Slot>(getShared(), "plan");
+  for (const d of days) {
+    const today: Partial<Record<Meal, Slot>> = {};
+    for (const m of MEALS) if (all[slotKey(week, d, m)]?.dishes?.length) today[m] = all[slotKey(week, d, m)];
+    const fitted = fitPortions(today, targets, perServing);
+    for (const m of MEALS) {
+      const s = fitted[m];
+      if (s && JSON.stringify(s) !== JSON.stringify(today[m])) setSlot(week, d, m, s);
+    }
+  }
 }
 
 export function removeDish(week: string, day: Day, meal: Meal, recipeId: string) {

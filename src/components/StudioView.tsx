@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { aiHeaders, aiReady, handoff, saveProgress, saveRecipe, useSavedRecipes, useSettings } from "@/lib/store";
+import { aiHeaders, aiReady, deleteRecipe, getSavedRecipes, handoff, saveProgress, saveRecipe, useSavedRecipes, useSettings } from "@/lib/store";
 import { useHydrated } from "@/lib/useRecipe";
 import { totalMinutes } from "@/lib/format";
-import { SEED_RECIPES, applyOfflineTweaks, findInLibrary, parseOfflineTweak, scaleRecipe, type CustomisationId } from "@/lib/recipes";
+import { applyOfflineTweaks, findInLibrary, findSeed, parseOfflineTweak, scaleRecipe, withSaved, type CustomisationId } from "@/lib/recipes";
 import { convertRecipe, cleanName, conversionQuality } from "@/lib/convert";
 import { PROVIDERS } from "@/lib/providers";
 import { isYouTubeUrl, TRUSTED_CHANNELS, type SearchResult } from "@/lib/yt-parse";
@@ -41,11 +41,14 @@ type Msg =
   | { role: "results"; results: SearchResult[] }
   | { role: "library"; recipe: Recipe }
   | { role: "recipe"; recipe: Recipe; notes?: string }
+  | { role: "replace"; recipe: Recipe; match: Recipe; done?: "replaced" | "kept" }
   | { role: "error"; content: string; needsKey?: boolean };
 
 const IDEAS = ["Palak paneer", "Kerala avial", "Veg pulao", "Bisi bele bath", "Kadai paneer", "Rava kesari"];
 const TWEAK_OPTIONS: { label: string; id: CustomisationId }[] = [
   { label: "Low oil", id: "low_oil" },
+  { label: "High protein", id: "high_protein" },
+  { label: "Low carb", id: "low_carb" },
   { label: "Less spicy", id: "less_spicy" },
   { label: "Kid friendly", id: "kid_friendly" },
 ];
@@ -106,8 +109,27 @@ export function StudioView() {
   function finish(list: Msg[], r: Recipe, notes?: string) {
     saveRecipe(r);
     setRecipe(r);
-    setMsgs([...list, { role: "recipe", recipe: r, notes }]);
+    const next: Msg[] = [...list, { role: "recipe", recipe: r, notes }];
+    // A new dish we already have: offer to update the list instead of keeping two.
+    const asked = list.some((m) => m.role === "replace");
+    const match = asked || r.variant?.length ? undefined : findInLibrary(r.name, withSaved(getSavedRecipes()).filter((x) => x.id !== r.id));
+    if (match) next.push({ role: "replace", recipe: r, match });
+    setMsgs(next);
     setBusy(null);
+  }
+
+  function resolveReplace(index: number, replace: boolean) {
+    const m = msgs[index];
+    if (m?.role !== "replace") return;
+    let r = m.recipe;
+    if (replace) {
+      // Same id as the library dish: stars, pins and meal plans now point at the new recipe.
+      r = { ...m.recipe, id: m.match.id, createdAt: undefined };
+      saveRecipe(r);
+      deleteRecipe(m.recipe.id);
+      setRecipe(r);
+    }
+    setMsgs(msgs.map((x, i) => (i === index ? { ...m, done: replace ? "replaced" : "kept" } : x.role === "recipe" && x.recipe.id === m.recipe.id ? { ...x, recipe: r } : x)));
   }
 
   // ---------- AI path ----------
@@ -226,7 +248,7 @@ export function StudioView() {
       if (ai) return compose(list, video, content);
       const { servings: n, tweaks } = parseOfflineTweak(content);
       if (!n && !tweaks.length) {
-        setMsgs([...list, { role: "assistant", content: "Without AI I can change the number of people, and make it low oil, less spicy or kid friendly. Try “for 5 people” or “less spicy”. For anything else, connect a free AI in Settings." }]);
+        setMsgs([...list, { role: "assistant", content: "Without AI I can change the number of people, and make it low oil, high protein, low carb, less spicy or kid friendly. Try “for 5 people” or “more protein”. For anything else, connect a free AI in Settings." }]);
         return;
       }
       let r = n ? scaleRecipe(recipe, n) : recipe;
@@ -234,7 +256,7 @@ export function StudioView() {
       return finish(list, r);
     }
 
-    const local = findInLibrary(content, [...saved, ...SEED_RECIPES]);
+    const local = findInLibrary(content, withSaved(saved));
     const withLib: Msg[] = local ? [...list, { role: "library", recipe: local }] : list;
     if (local) setMsgs(withLib);
     if (ai) return ask(withLib, video);
@@ -372,6 +394,7 @@ export function StudioView() {
                 askServings(list, v);
               }}
               onOpen={(r) => router.push(`/recipe/${r.id}`)}
+              onReplace={(yes) => resolveReplace(i, yes)}
               onCook={(r) => {
                 saveProgress({ recipeId: r.id, servings: r.servings, index: 0 });
                 router.push(`/cook/${r.id}`);
@@ -491,6 +514,7 @@ function Bubble({
   onConvertFree,
   onOpen,
   onCook,
+  onReplace,
 }: {
   m: Msg;
   ai: boolean;
@@ -498,7 +522,33 @@ function Bubble({
   onConvertFree: (v: Video) => void;
   onOpen: (r: Recipe) => void;
   onCook: (r: Recipe) => void;
+  onReplace: (replace: boolean) => void;
 }) {
+  if (m.role === "replace") {
+    const where = findSeed(m.match.id) ? "the library" : "your recipes";
+    if (m.done)
+      return (
+        <p className="animate-rise rounded-[20px] bg-paper-2 px-4 py-3 text-[13px] text-ink-2" role="status">
+          {m.done === "replaced" ? `Updated: ${m.match.name} in ${where} is now this recipe. Stars, pins and meal plans carry over.` : `Kept both — the new one is in My recipes.`}
+        </p>
+      );
+    return (
+      <div className="animate-rise rounded-[22px] border border-line-2 bg-card p-4">
+        <p className="text-[14px] leading-snug">
+          You already have <span className="font-medium">{m.match.name}</span> in {where}. Use this one instead?
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button onClick={() => onReplace(true)} className="press rounded-2xl bg-ink py-2.5 text-[13px] font-medium text-paper">
+            Replace it
+          </button>
+          <button onClick={() => onReplace(false)} className="press rounded-2xl border border-line-2 py-2.5 text-[13px] font-medium">
+            Keep both
+          </button>
+        </div>
+        {where === "the library" && <p className="mt-2 text-[11px] text-ink-3">You can bring the original back from the recipe page.</p>}
+      </div>
+    );
+  }
   if (m.role === "user") {
     const isLink = isYouTubeUrl(m.content);
     return (

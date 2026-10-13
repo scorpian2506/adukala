@@ -1,5 +1,7 @@
 // Family profiles and daily targets. Estimates only — not medical advice.
 
+import type { CustomisationId } from "./tweaks";
+
 export type Goal = "lose" | "maintain" | "gain" | "muscle";
 export type Activity = "sedentary" | "light" | "moderate" | "active" | "very";
 export type Sex = "male" | "female";
@@ -16,6 +18,10 @@ export interface Member {
   weightKg?: number;
   activity: Activity;
   goal: Goal; // children are always "maintain" (growing)
+  /** Weekly change for lose/gain/muscle, in kg (0.25, 0.5 or 1). */
+  rateKg?: number;
+  /** Recipe tweaks applied by default when this person opens a recipe or plans a dish. */
+  tweaks?: CustomisationId[];
   diet: "veg" | "egg" | "nonveg";
   color: string;
 }
@@ -55,6 +61,24 @@ export interface Target {
   kcal: number;
   protein: number; // g/day
   basis: string; // how it was worked out, in plain words
+  /** Calories to keep the current weight (adults). */
+  maintain?: number;
+  /** The goal asked for less than the safe minimum, so the minimum is used. */
+  floored?: boolean;
+}
+
+/** ~7,700 kcal per kg of body weight. */
+export const KCAL_PER_KG = 7700;
+export const RATES = [0.25, 0.5, 1] as const;
+export const DEFAULT_RATE: Record<Goal, number> = { lose: 0.5, maintain: 0, gain: 0.5, muscle: 0.25 };
+
+export function rateOf(m: Pick<Member, "goal" | "rateKg">): number {
+  if (m.goal === "maintain") return 0;
+  return m.rateKg && m.rateKg > 0 ? m.rateKg : DEFAULT_RATE[m.goal];
+}
+
+export function minKcal(sex: Sex) {
+  return sex === "male" ? 1500 : 1200;
 }
 
 const round = (n: number, to: number) => Math.round(n / to) * to;
@@ -84,12 +108,63 @@ export function dailyTarget(m: Member): Target {
     tdee = factor >= 1.55 ? ref.moderate : ref.sedentary;
     basis = "ICMR-NIN adult reference (add height and weight for a closer number)";
   }
-  const floor = m.sex === "male" ? 1500 : 1200;
-  const adjust = { lose: -500, maintain: 0, gain: 400, muscle: 250 }[m.goal];
-  const kcal = round(Math.max(floor, tdee + adjust), 10);
+  const floor = minKcal(m.sex);
+  const rate = rateOf(m);
+  const adjust = ((m.goal === "lose" ? -1 : 1) * rate * KCAL_PER_KG) / 7;
+  const wanted = tdee + adjust;
+  const kcal = round(Math.max(floor, wanted), 10);
   const perKg = { lose: 1.2, maintain: 0.83, gain: 1.0, muscle: 1.6 }[m.goal];
   const protein = round((m.weightKg ?? (m.sex === "male" ? 65 : 55)) * perKg, 1);
-  return { kcal, protein, basis };
+  return { kcal, protein, basis, maintain: round(tdee, 10), floored: wanted < floor };
+}
+
+export interface CalorieRow {
+  goal: Goal;
+  rateKg: number;
+  label: string;
+  kcal: number;
+  /** Share of maintenance calories. */
+  pct: number;
+  floored: boolean;
+}
+
+/** Calories per day for each goal and pace — the calculator table. Adults only. */
+export function calorieTable(m: Member): CalorieRow[] {
+  const maintain = dailyTarget({ ...m, goal: "maintain" }).maintain ?? 0;
+  const row = (goal: Goal, rateKg: number, label: string): CalorieRow => {
+    const t = dailyTarget({ ...m, goal, rateKg });
+    return { goal, rateKg, label, kcal: t.kcal, pct: Math.round((t.kcal / maintain) * 100), floored: !!t.floored };
+  };
+  return [
+    row("maintain", 0, "Stay as I am"),
+    row("lose", 0.25, "Lose ¼ kg a week"),
+    row("lose", 0.5, "Lose ½ kg a week"),
+    row("lose", 1, "Lose 1 kg a week"),
+    row("gain", 0.25, "Gain ¼ kg a week"),
+    row("gain", 0.5, "Gain ½ kg a week"),
+    row("muscle", 0.25, "Build muscle (+¼ kg a week)"),
+  ];
+}
+
+/** Body mass index, with the Asian-Indian cut-offs (ICMR / WHO Asia-Pacific). */
+export function bmi(m: Pick<Member, "heightCm" | "weightKg">): { value: number; label: string; healthy: [number, number] } | null {
+  if (!m.heightCm || !m.weightKg) return null;
+  const h = m.heightCm / 100;
+  const value = Math.round((m.weightKg / (h * h)) * 10) / 10;
+  const label = value < 18.5 ? "Underweight" : value < 23 ? "Healthy" : value < 25 ? "Overweight" : "Obese";
+  return { value, label, healthy: [Math.round(18.5 * h * h), Math.round(22.9 * h * h)] };
+}
+
+/** Tweaks this person usually wants: their own choice, else one that suits their goal. */
+export function usualTweaks(m: Pick<Member, "goal" | "tweaks" | "kind"> | undefined): CustomisationId[] {
+  if (!m) return [];
+  if (m.tweaks) return m.tweaks;
+  if (m.kind === "child") return [];
+  return m.goal === "lose" ? ["low_oil", "high_protein", "low_carb"] : m.goal === "muscle" ? ["high_protein"] : [];
+}
+
+export function needsBody(m: Member) {
+  return m.kind === "adult" && (!m.heightCm || !m.weightKg);
 }
 
 /** How much of each dish someone eats by default (a full serving for adults). */

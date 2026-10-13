@@ -19,14 +19,25 @@ The core app needs no AI and no API key.
    - the cook's website, linked in the video description (WP Recipe Maker markup or schema.org JSON-LD);
    - the ingredient list pasted into the description.
 3. **Dish search.** Type a dish name. Adukala checks the library first, then searches YouTube and ranks channels that publish measured recipes first.
-4. **Offline tweaks.** Change servings, or make a recipe low oil, less spicy or kid friendly, without AI.
+4. **Rule-based tweaks** (`src/lib/tweaks.ts`). Change servings, or make a recipe low oil, high protein, low carb, less spicy or kid friendly, without AI.
+   - **Low oil** halves oil and ghee. Deep-frying oil and the ghee in sweets stay, with a note.
+   - **High protein** uses 1.5× the dal, paneer, egg or meat.
+   - **Low carb** uses 0.6× the rice, flour or potato and half the sugar, and adds vegetables (or lean protein) back so the pot still feeds everyone.
+   - Water cooked with the rice or dal moves with it. Salt follows the amount of food. Step items always add up to the ingredient totals.
+   - Batters, doughs, sweets and plain rice keep their ratios. The app says why and suggests a smaller portion instead.
+   - Versions have stable ids like `sambar--low_oil-high_protein` and are re-derived from the base recipe, never stored.
+   - Each signed-in person can set **usual tweaks** (suggested from their goal). They're pre-ticked on every recipe and in the planner, and can be unticked.
+   - Jain, vegan and diabetic friendly still need AI.
 
 When a video has no written recipe, Adukala says so and offers videos from cooks who do publish one. It never invents amounts from a title. Any amount it has to estimate ("a few curry leaves", "salt to taste") is marked **est.** and listed in a warning.
 
 ## Meal planner, family and shopping
 
 - **Family:** everyone you cook for, including kids without a login. Each person has age, sex, height, weight, activity, goal (lose, maintain, gain, build muscle) and diet.
-- **Daily targets:** worked out per person (`src/lib/family.ts`). Adults use Mifflin–St Jeor, with safe floors for weight loss. Children use ICMR-NIN age guidance.
+- **Daily targets:** worked out per person (`src/lib/family.ts`).
+  - Adults need height and weight, and get a calculator table: calories to stay the same, lose ¼, ½ or 1 kg a week, gain, or build muscle (7,700 kcal per kg). Safe floors are 1,200 kcal for women and 1,500 for men. BMI uses Asian-Indian cut-offs.
+  - Children use ICMR-NIN age guidance.
+- **One pot, different plates:** you can't cook for one person, so each dish is cooked once for the family. "Fit to goals" sizes each person's portions so their day adds up to their target (25% breakfast, 35% lunch, 10% snack, 30% dinner; quarter servings). Each dish shows how many servings to cook and how much to serve each person. The tweaks apply to the whole dish.
 - **Plan:** Mon–Sun, four meals a day, built from the recipe library with starred dishes first. Each dish has a portion per person. It shows calories and protein per person for each day and the whole week.
 - **Calories:** worked out from each recipe's measured ingredients (`src/lib/nutrition.ts` with IFCT/USDA data in `nutrition-data.ts`). Only about 12% of deep-frying oil is counted, since most isn't eaten. These are estimates.
 - **Shopping list:** built from the week's plan and scaled to the portions. Items are merged across recipes and grouped by aisle. Ticks sync, and the list can be shared or copied.
@@ -56,8 +67,11 @@ Choose a provider in **Settings**. The key is stored in your browser and sent pe
 
 AI adds three things:
 - a chat interview before the recipe is written;
-- recipes for videos that have no written recipe;
-- AI-only customisations: high protein, low carb, Jain, vegan, diabetic friendly.
+- recipes for videos that have no written recipe. With Gemini:
+  1. Gemini watches the video and writes down what the cook says and shows (in effect, a transcript).
+  2. It searches the web for published recipes of the same dish and picks the closest match, cross-checking the measurements.
+  3. The result is saved to the household's recipes. If the dish is already in the library, you can **replace** the library version (stars, pins and plans carry over, and the original can be restored) or keep both.
+- AI-only customisations: Jain, vegan, diabetic friendly.
 
 Do **not** set `OPENAI_API_KEY` on a public deployment. The server falls back to it, and anyone could spend it.
 
@@ -72,8 +86,8 @@ From datacenter IPs such as Vercel's, YouTube blocks its watch page and player A
 ## Tests
 
 ```bash
-npm test            # 391 unit tests (Vitest): recipes, search, converter, accounts and sync against real Postgres
-npm run test:e2e    # 47 browser tests (Playwright, iPhone viewport, production build, stubbed APIs)
+npm test            # 407 unit tests (Vitest): recipes, search, converter, accounts and sync against real Postgres
+npm run test:e2e    # 51 browser tests (Playwright, iPhone viewport, production build, stubbed APIs)
 npm run test:live   # opt-in: real YouTube calls (E2E_BASE_URL=https://… to hit a deployment)
 npm run test:batch  # real dishes → real videos → converter → quality rules (BASE=https://…)
 npm run validate    # quality rules for the recipe library

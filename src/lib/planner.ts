@@ -99,3 +99,43 @@ export function servingsByRecipe(slots: Slot[]): Map<string, number> {
   }
   return m;
 }
+
+/** How a day's calories are usually spread across meals. */
+export const MEAL_SHARE: Record<Meal, number> = { breakfast: 0.25, lunch: 0.35, snack: 0.1, dinner: 0.3 };
+export const PORTION_MIN = 0.25;
+export const PORTION_MAX = 3;
+
+/**
+ * One pot feeds everyone, so goals are met by serving sizes: scale each person's portions
+ * so their planned meals add up to their daily target (meals share it as in MEAL_SHARE).
+ * People who aren't eating a dish (portion 0) stay at 0. Rounded to quarter servings.
+ */
+export function fitPortions(
+  day: Partial<Record<Meal, Slot>>,
+  targets: Record<string, number>,
+  perServing: (recipeId: string) => Nutrients | null,
+): Partial<Record<Meal, Slot>> {
+  const out: Partial<Record<Meal, Slot>> = {};
+  for (const meal of MEALS) if (day[meal]) out[meal] = { dishes: day[meal]!.dishes.map((d) => ({ ...d, portions: { ...d.portions } })) };
+  for (const [id, target] of Object.entries(targets)) {
+    if (!(target > 0)) continue;
+    const eaten = (meal: Meal) =>
+      (out[meal]?.dishes ?? []).reduce((n, d) => n + (d.portions[id] ?? 0) * (perServing(d.recipeId)?.kcal ?? 0), 0);
+    const meals = MEALS.filter((m) => eaten(m) > 0);
+    const shares = meals.reduce((n, m) => n + MEAL_SHARE[m], 0);
+    for (const meal of meals) {
+      const f = (target * (MEAL_SHARE[meal] / shares)) / eaten(meal);
+      for (const d of out[meal]!.dishes) {
+        const p = d.portions[id] ?? 0;
+        if (p > 0 && perServing(d.recipeId)) d.portions[id] = Math.min(PORTION_MAX, Math.max(PORTION_MIN, Math.round(p * f * 4) / 4));
+      }
+    }
+  }
+  return out;
+}
+
+/** Total servings to cook for a dish (everyone's portions, rounded up to a half). */
+export function potServings(portions: Record<string, number>): number {
+  const total = Object.values(portions).reduce((a, b) => a + b, 0);
+  return Math.ceil(total * 2) / 2;
+}

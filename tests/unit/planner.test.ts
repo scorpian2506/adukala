@@ -41,7 +41,7 @@ describe("targets", () => {
   it("uses Mifflin-St Jeor with activity and goal", () => {
     // BMR = 800 + 1093.75 - 175 + 5 = 1723.75; × 1.375 = 2370 → maintain
     expect(dailyTarget(adult({})).kcal).toBe(2370);
-    expect(dailyTarget(adult({ goal: "lose" })).kcal).toBe(1870);
+    expect(dailyTarget(adult({ goal: "lose" })).kcal).toBe(1820); // ½ kg a week = 550 kcal a day
     expect(dailyTarget(adult({ goal: "muscle" })).protein).toBe(128);
   });
   it("never goes below a safe floor when losing weight", () => {

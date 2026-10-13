@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { Wordmark } from "./Wordmark";
+import { Logo } from "./Logo";
 import { NavTracker } from "./Nav";
 import { SyncAgent } from "./SyncAgent";
 
@@ -21,7 +21,7 @@ export function DesktopFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative z-10 lg:grid lg:min-h-dvh lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-10 lg:px-10">
       <aside className="hidden lg:flex lg:flex-col lg:justify-between lg:self-stretch lg:py-12">
-        <Wordmark className="text-[34px]" />
+        <Logo className="text-[34px]" />
         <div className="max-w-[440px]">
           <p className="eyebrow text-ink-3">Measured Indian cooking</p>
           <h1 className="font-display mt-4 text-[64px] leading-[0.95] text-ink">

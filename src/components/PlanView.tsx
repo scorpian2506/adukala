@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { SEED_RECIPES } from "@/lib/recipes";
+import { CUSTOMISATIONS, OFFLINE_CUSTOMISATIONS, findRecipe, parseVariantId, versionOf, withSaved, type CustomisationId } from "@/lib/recipes";
 import { searchRecipes } from "@/lib/search";
 import { markedIds, saveProgress, useMarks, useSavedRecipes } from "@/lib/store";
-import { addDish, copyWeek, removeDish, updateDish, useFamily, usePlanWeek } from "@/lib/household";
-import { dailyTarget, eats, type Member } from "@/lib/family";
+import { addDish, copyWeek, fitDays, removeDish, updateDish, useFamily, useMe, usePlanWeek } from "@/lib/household";
+import { dailyTarget, eats, usualTweaks, type Member } from "@/lib/family";
 import { recipeNutrition } from "@/lib/nutrition";
-import { DAYS, DAY_LABEL, MEALS, MEAL_LABEL, addWeeks, dayDate, personTotals, todayDay, weekLabel, weekStart, type Day, type Meal, type Nutrients, type PlannedDish, type Slot } from "@/lib/planner";
+import { DAYS, DAY_LABEL, MEALS, MEAL_LABEL, addWeeks, dayDate, personTotals, potServings, todayDay, weekLabel, weekStart, type Day, type Meal, type Nutrients, type PlannedDish, type Slot } from "@/lib/planner";
 import { useHydrated } from "@/lib/useRecipe";
 import type { Recipe } from "@/lib/types";
 import { BottomNav } from "./Nav";
@@ -28,7 +28,9 @@ export function PlanView() {
   const members = useFamily();
   const plan = usePlanWeek(week);
   const saved = useSavedRecipes();
-  const byId = useMemo(() => new Map([...saved, ...SEED_RECIPES].map((r) => [r.id, r])), [saved]);
+  const me = useMe();
+  const myTweaks = usualTweaks(me);
+  const byId = useMemo(() => ({ get: (id: string) => findRecipe(id, saved) }), [saved]);
   const per = (id: string): Nutrients | null => {
     const r = byId.get(id);
     return r ? recipeNutrition(r).perServing : null;
@@ -130,8 +132,9 @@ export function PlanView() {
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[15px] font-medium">{r.name}</span>
+                            {r.variant?.length ? <span className="block truncate text-[11px] text-leaf">{r.variant.join(" · ")}</span> : null}
                             <span className="mt-0.5 flex items-center gap-1 text-[11px] text-ink-3">
-                              ≈{kcal} kcal/serving ·
+                              ≈{kcal} kcal/serving · cook {potServings(d.portions)} ·
                               {eaters.length ? (
                                 eaters.map((m) => (
                                   <span key={m.id} className="inline-flex items-center gap-0.5">
@@ -158,6 +161,20 @@ export function PlanView() {
       </section>
 
       {members.length > 0 && <DayTotals members={members} slots={daySlots(day)} per={per} day={day} />}
+      {members.length > 0 && plannedCount > 0 && (
+        <div className="mx-4 mt-2 rounded-[22px] border border-line-2 bg-card p-4">
+          <p className="text-[14px] font-medium">One pot, different plates</p>
+          <p className="mt-1 text-[12px] leading-snug text-ink-3">You cook each dish once for everyone. We size each person&rsquo;s plate so their day adds up to their target.</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button onClick={() => fitDays(week, [day], members, per)} className="press rounded-xl bg-ink py-2.5 text-[13px] font-medium text-paper">
+              Fit {DAY_LABEL[day]} to goals
+            </button>
+            <button onClick={() => fitDays(week, DAYS, members, per)} className="press rounded-xl border border-line-2 py-2.5 text-[13px] font-medium">
+              Fit whole week
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mx-4 mt-4 grid grid-cols-2 gap-2">
         <Link href={`/plan/shopping?week=${week}`} className="press flex items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-[14px] font-medium text-paper">
@@ -175,14 +192,15 @@ export function PlanView() {
       </div>
       <p className="mx-5 mt-4 text-[12px] text-ink-3">Calories are estimates from each recipe&rsquo;s measured ingredients.</p>
 
-      {picker && <DishPicker members={members} onClose={() => setPicker(null)} onPick={(r) => (addDish(week, day, picker, r, members), setPicker(null))} />}
+      {picker && <DishPicker members={members} tweaks={myTweaks} onClose={() => setPicker(null)} onPick={(r) => (addDish(week, day, picker, versionOf(r, myTweaks), members), setPicker(null))} />}
       {editing && (
         <PortionSheet
           recipe={byId.get(editing.dish.recipeId)!}
+          lookup={byId.get}
           dish={editing.dish}
           members={members}
           onClose={() => setEditing(null)}
-          onSave={(portions) => (updateDish(week, day, editing.meal, editing.dish.recipeId, portions), setEditing(null))}
+          onSave={(portions, recipeId) => (updateDish(week, day, editing.meal, editing.dish.recipeId, portions, recipeId), setEditing(null))}
           onRemove={() => (removeDish(week, day, editing.meal, editing.dish.recipeId), setEditing(null))}
         />
       )}
@@ -191,7 +209,11 @@ export function PlanView() {
   );
 }
 
-const fmtPortion = (p: number) => (p === 0.5 ? "½" : p === 0.25 ? "¼" : p === 0.75 ? "¾" : p === 1.5 ? "1½" : String(p));
+const fmtPortion = (p: number) => {
+  const whole = Math.floor(p);
+  const frac = { 0: "", 0.25: "¼", 0.5: "½", 0.75: "¾" }[p - whole] ?? "";
+  return whole === 0 ? frac || "0" : `${whole}${frac}`;
+};
 
 function Bar({ value, target }: { value: number; target: number }) {
   const pct = target ? value / target : 0;
@@ -259,16 +281,42 @@ function DayTotals({ members, slots, per, day }: { members: Member[]; slots: Slo
   );
 }
 
-function DishPicker({ members, onClose, onPick }: { members: Member[]; onClose: () => void; onPick: (r: Recipe) => void }) {
+type Fit = "all" | "protein" | "light" | "lowcarb";
+const FITS: { id: Fit; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "protein", label: "High protein" },
+  { id: "lowcarb", label: "Low carb" },
+  { id: "light", label: "Under 300 kcal" },
+];
+
+/** Goal badges for one serving: protein ≥ 20% of calories, carbs ≤ 35%, or under 300 kcal. */
+export function fitsOf(n: Nutrients): Set<Fit> {
+  const out = new Set<Fit>();
+  if (n.kcal > 0 && (n.protein * 4) / n.kcal >= 0.2) out.add("protein");
+  if (n.kcal > 0 && (n.carbs * 4) / n.kcal <= 0.35) out.add("lowcarb");
+  if (n.kcal > 0 && n.kcal < 300) out.add("light");
+  return out;
+}
+
+function DishPicker({ members, tweaks, onClose, onPick }: { members: Member[]; tweaks: CustomisationId[]; onClose: () => void; onPick: (r: Recipe) => void }) {
   const [q, setQ] = useState("");
+  const [fit, setFit] = useState<Fit>("all");
   const marks = useMarks();
   const saved = useSavedRecipes();
   const starred = useMemo(() => new Set(markedIds(marks, "star")), [marks]);
-  const all = useMemo(() => [...saved, ...SEED_RECIPES], [saved]);
+  const all = useMemo(() => withSaved(saved), [saved]);
+  const key = tweaks.join(",");
   const results = useMemo(() => {
     const r = searchRecipes(all, q);
-    return q ? r : [...r.filter((x) => starred.has(x.id)), ...r.filter((x) => !starred.has(x.id))];
-  }, [all, q, starred]);
+    const ordered = q ? r : [...r.filter((x) => starred.has(x.id)), ...r.filter((x) => !starred.has(x.id))];
+    const list = key.length ? (key.split(",") as CustomisationId[]) : [];
+    return ordered
+      .map((x) => {
+        const n = recipeNutrition(versionOf(x, list)).perServing;
+        return { r: x, n, fits: fitsOf(n) };
+      })
+      .filter((x) => fit === "all" || x.fits.has(fit));
+  }, [all, q, starred, fit, key]);
   const someoneCantEat = (r: Recipe) => members.some((m) => !eats(m, r.diet));
 
   return (
@@ -282,8 +330,20 @@ function DishPicker({ members, onClose, onPick }: { members: Member[]; onClose: 
             <Close size={18} />
           </button>
         </div>
+        <div className="no-scrollbar mt-2 flex gap-1.5 overflow-x-auto" role="radiogroup" aria-label="Goal filter">
+          {FITS.map((f) => (
+            <button key={f.id} role="radio" aria-checked={fit === f.id} onClick={() => setFit(f.id)} className={`press shrink-0 rounded-full border px-3 py-1.5 text-[12px] ${fit === f.id ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-2"}`}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+        {tweaks.length > 0 && (
+          <p className="mt-2 px-1 text-[12px] text-ink-3">
+            Added as your usual version: {CUSTOMISATIONS.filter((c) => tweaks.includes(c.id)).map((c) => c.label.toLowerCase()).join(", ")}. Change it per dish after.
+          </p>
+        )}
         <ul className="no-scrollbar mt-2 flex-1 overflow-y-auto pb-2">
-          {results.slice(0, 60).map((r) => (
+          {results.slice(0, 60).map(({ r, n, fits }) => (
             <li key={r.id}>
               <button onClick={() => onPick(r)} className="press flex w-full items-center gap-3 border-b border-line py-2.5 text-left">
                 <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${HUE_BG[r.hue]}`}>
@@ -295,7 +355,7 @@ function DishPicker({ members, onClose, onPick }: { members: Member[]; onClose: 
                     {r.name}
                   </span>
                   <span className="text-[11px] text-ink-3">
-                    ≈{Math.round(recipeNutrition(r).perServing.kcal)} kcal/serving{someoneCantEat(r) ? " · not for everyone's diet" : ""}
+                    ≈{Math.round(n.kcal)} kcal · {Math.round(n.protein)} g protein{fits.has("protein") ? " · high protein" : ""}{someoneCantEat(r) ? " · not for everyone's diet" : ""}
                   </span>
                 </span>
                 <Plus size={18} className="text-ink-3" />
@@ -308,27 +368,62 @@ function DishPicker({ members, onClose, onPick }: { members: Member[]; onClose: 
   );
 }
 
-function PortionSheet({ recipe, dish, members, onClose, onSave, onRemove }: { recipe: Recipe; dish: PlannedDish; members: Member[]; onClose: () => void; onSave: (p: Record<string, number>) => void; onRemove: () => void }) {
+function PortionSheet({
+  recipe,
+  dish,
+  members,
+  lookup,
+  onClose,
+  onSave,
+  onRemove,
+}: {
+  recipe: Recipe;
+  dish: PlannedDish;
+  members: Member[];
+  lookup: (id: string) => Recipe | undefined;
+  onClose: () => void;
+  onSave: (p: Record<string, number>, recipeId: string) => void;
+  onRemove: () => void;
+}) {
   const router = useRouter();
   const [portions, setPortions] = useState<Record<string, number>>(() => ({ ...dish.portions }));
-  const total = Object.values(portions).reduce((a, b) => a + b, 0);
-  const n = recipeNutrition(recipe).perServing;
+  // The dish is one pot for everyone: its tweaks apply to the whole family's food.
+  const parsed = parseVariantId(recipe.id);
+  const base = (parsed && lookup(parsed.base)) || recipe;
+  const [tweaks, setTweaks] = useState<CustomisationId[]>(() => (base === recipe ? [] : (parsed?.tweaks ?? [])));
+  const version = versionOf(base, tweaks);
+  const total = potServings(portions);
+  const n = recipeNutrition(version).perServing;
   const step = (id: string, d: number) => setPortions((p) => ({ ...p, [id]: Math.max(0, Math.min(4, (p[id] ?? 0) + d)) }));
+  const toggle = (id: CustomisationId) => setTweaks((t) => (t.includes(id) ? t.filter((x) => x !== id) : [...t, id]));
+  const eaters = members.filter((m) => (portions[m.id] ?? 0) > 0);
 
   return (
     <div className="absolute inset-0 z-50 flex flex-col justify-end bg-ink/40 animate-fade" onClick={onClose} role="dialog" aria-modal="true" aria-label={`Portions of ${recipe.name}`}>
       <div className="safe-b max-h-[90%] overflow-y-auto rounded-t-[30px] bg-paper px-5 pt-3 animate-rise" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto h-1 w-10 rounded-full bg-line-2" />
-        <h2 className="font-display mt-4 text-[30px] leading-none">{recipe.name}</h2>
+        <h2 className="font-display mt-4 text-[30px] leading-none">{base.name}</h2>
         <p className="mt-1 text-[13px] text-ink-3 tnum">
           One serving ≈ {Math.round(n.kcal)} kcal · {Math.round(n.protein)} g protein · {Math.round(n.carbs)} g carbs · {Math.round(n.fat)} g fat
         </p>
+        <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Tweaks for this dish">
+          {CUSTOMISATIONS.filter((c) => OFFLINE_CUSTOMISATIONS.includes(c.id)).map((c) => {
+            const on = tweaks.includes(c.id);
+            return (
+              <button key={c.id} aria-pressed={on} onClick={() => toggle(c.id)} className={`press inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] ${on ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-2"}`}>
+                {on && <Check size={12} />}
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
         <ul className="mt-4 space-y-2">
           {members.map((m) => (
             <li key={m.id} className="flex items-center justify-between rounded-2xl border border-line-2 bg-card px-3 py-2">
               <span className="flex items-center gap-2 text-[15px]">
                 <Avatar m={m} size={28} /> {m.name}
                 {!eats(m, recipe.diet) && <span className="text-[11px] text-chilli">diet</span>}
+                {(portions[m.id] ?? 0) > 0 && <span className="text-[11px] text-ink-3 tnum">≈{Math.round(n.kcal * portions[m.id])} kcal</span>}
               </span>
               <span className="flex items-center gap-1">
                 <button onClick={() => step(m.id, -0.25)} className="press grid h-9 w-9 place-items-center rounded-full border border-line-2" aria-label={`Less for ${m.name}`}>
@@ -344,21 +439,23 @@ function PortionSheet({ recipe, dish, members, onClose, onSave, onRemove }: { re
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-[13px] text-ink-2 tnum">Cook {Math.ceil(total * 2) / 2} servings in total.</p>
+        <p className="mt-3 text-[13px] text-ink-2 tnum" data-testid="serving-guide">
+          Cook {total} servings in one pot{eaters.length ? `, then serve ${eaters.map((m) => `${m.name} ${fmtPortion(portions[m.id])}`).join(" · ")}` : ""}.
+        </p>
         <div className="mt-4 grid grid-cols-[auto_1fr_1fr] gap-2 pb-2">
           <button onClick={onRemove} className="press rounded-2xl border border-line-2 px-4 text-[14px] text-chilli">
             Remove
           </button>
           <button
             onClick={() => {
-              saveProgress({ recipeId: recipe.id, servings: Math.max(1, Math.ceil(total)), index: 0 });
-              router.push(`/cook/${recipe.id}`);
+              saveProgress({ recipeId: version.id, servings: Math.max(1, Math.ceil(total)), index: 0 });
+              router.push(`/cook/${version.id}`);
             }}
             className="press rounded-2xl border border-line-2 bg-card py-3.5 text-[14px] font-medium"
           >
             Cook now
           </button>
-          <button onClick={() => onSave(portions)} className="press flex items-center justify-center gap-1.5 rounded-2xl bg-ink py-3.5 text-[14px] font-medium text-paper">
+          <button onClick={() => onSave(portions, version.id)} className="press flex items-center justify-center gap-1.5 rounded-2xl bg-ink py-3.5 text-[14px] font-medium text-paper">
             <Check size={16} /> Save
           </button>
         </div>

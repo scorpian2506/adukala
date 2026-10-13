@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { SEED_RECIPES } from "@/lib/recipes";
+import { findRecipe } from "@/lib/recipes";
 import { markedIds, useMarks, useSavedRecipes } from "@/lib/store";
 import { useHydrated } from "@/lib/useRecipe";
 import type { Recipe } from "@/lib/types";
@@ -17,9 +17,8 @@ export function SavedView() {
   const saved = useSavedRecipes();
   const hydrated = useHydrated();
   const [tab, setTab] = useState<Tab>("star");
-  const byId = new Map<string, Recipe>([...SEED_RECIPES, ...saved].map((r) => [r.id, r]));
   const list: Recipe[] =
-    tab === "mine" ? saved : markedIds(marks, tab).map((id) => byId.get(id)).filter((r): r is Recipe => !!r);
+    tab === "mine" ? saved : markedIds(marks, tab).map((id) => findRecipe(id, saved)).filter((r): r is Recipe => !!r);
 
   const tabs: { id: Tab; label: string; n: number }[] = [
     { id: "star", label: "Starred", n: markedIds(marks, "star").length },
