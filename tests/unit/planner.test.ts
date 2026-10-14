@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DAYS, MEALS, addWeeks, dateKey, dayDate, personTotals, servingsByRecipe, shopDishes, shopScopeKey, shopScopeLabel, slotKey, todayDay, weekLabel, weekStart, type Slot } from "@/lib/planner";
+import { DAYS, MEALS, addWeeks, dateKey, dayDate, dishKey, personTotals, planSlots, servingsByRecipe, shopDishes, shopScopeKey, shopScopeLabel, slotKey, slotWrites, todayDay, weekLabel, weekStart, type PlanEntry, type Slot } from "@/lib/planner";
 import { bmi, calorieTable, checkDay, dailyTarget, defaultPortion, eats, type Member } from "@/lib/family";
 import { shoppingList } from "@/lib/nutrition";
 import { findRecipe } from "@/lib/recipes";
@@ -136,5 +136,58 @@ describe("targets", () => {
     expect(eats({ diet: "egg" }, ["egg"])).toBe(true);
     expect(eats({ diet: "egg" }, ["non_veg"])).toBe(false);
     expect(eats({ diet: "nonveg" }, ["non_veg"])).toBe(true);
+  });
+});
+
+describe("plan storage: one synced item per dish", () => {
+  const slot = "2026-10-12:wed:dinner";
+  const sync = (a: Record<string, PlanEntry>, b: Record<string, PlanEntry>) => {
+    // Newest change per key wins (as the server does).
+    const out = { ...a };
+    for (const [k, e] of Object.entries(b)) if (!out[k] || e.at > out[k].at) out[k] = e;
+    return out;
+  };
+  const apply = (plan: Record<string, PlanEntry>, writes: ReturnType<typeof slotWrites>, at: number) => {
+    const out = { ...plan };
+    for (const [k, d] of writes) out[k] = d === null ? { deleted: true, at } : { data: d, at };
+    return out;
+  };
+  const names = (plan: Record<string, PlanEntry>) => planSlots(plan)[slot]?.dishes.map((d) => d.recipeId) ?? [];
+
+  it("two phones adding to the same meal keep both dishes", () => {
+    const a = apply({}, slotWrites({}, slot, { dishes: [{ recipeId: "jeera-rice", portions: { p: 1 } }] }, 1), 1);
+    const b = apply({}, slotWrites({}, slot, { dishes: [{ recipeId: "dal-tadka", portions: { p: 1 } }] }, 2), 2);
+    expect(names(sync(a, b))).toEqual(["jeera-rice", "dal-tadka"]);
+  });
+
+  it("reads an old whole-meal entry and retires it on the first edit", () => {
+    const old: Record<string, PlanEntry> = { [slot]: { data: { dishes: [{ recipeId: "sambar", portions: { p: 1 } }, { recipeId: "avial", portions: { p: 1 } }] }, at: 1 } };
+    expect(names(old)).toEqual(["sambar", "avial"]);
+    const next = { dishes: [{ recipeId: "sambar", portions: { p: 2 } }, { recipeId: "avial", portions: { p: 1 } }] };
+    const after = apply(old, slotWrites(old, slot, next, 5), 5);
+    expect(after[slot].deleted).toBe(true);
+    expect(planSlots(after)[slot]).toEqual(next);
+  });
+
+  it("only writes dishes that changed, and removing one leaves the others", () => {
+    let plan = apply({}, slotWrites({}, slot, { dishes: [{ recipeId: "sambar", portions: { p: 1 } }, { recipeId: "avial", portions: { p: 1 } }] }, 1), 1);
+    const w = slotWrites(plan, slot, { dishes: [{ recipeId: "sambar", portions: { p: 1 } }, { recipeId: "avial", portions: { p: 2 } }] }, 2);
+    expect(w.map(([k]) => k)).toEqual([dishKey(slot, "avial")]);
+    plan = apply(plan, slotWrites(plan, slot, { dishes: [{ recipeId: "avial", portions: { p: 1 } }] }, 3), 3);
+    expect(names(plan)).toEqual(["avial"]);
+    plan = apply(plan, slotWrites(plan, slot, { dishes: [] }, 4), 4);
+    expect(planSlots(plan)[slot]).toBeUndefined();
+  });
+
+  it("swapping a dish's version replaces it in place", () => {
+    let plan = apply({}, slotWrites({}, slot, { dishes: [{ recipeId: "sambar", portions: { p: 1 } }, { recipeId: "avial", portions: { p: 1 } }] }, 1), 1);
+    plan = apply(plan, slotWrites(plan, slot, { dishes: [{ recipeId: "sambar--low_oil", portions: { p: 1 } }, { recipeId: "avial", portions: { p: 1 } }] }, 2), 2);
+    expect(names(plan)).toEqual(["sambar--low_oil", "avial"]);
+  });
+
+  it("keeps sync keys under 200 characters", () => {
+    const long = `aloo-matar--low_oil~${Array.from({ length: 30 }, (_, i) => `x_ingredient${i}`).join("~")}`;
+    expect(dishKey(slot, long).length).toBeLessThanOrEqual(200);
+    expect(dishKey(slot, long)).not.toBe(dishKey(slot, `${long}~ggp`));
   });
 });

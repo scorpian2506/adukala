@@ -66,6 +66,91 @@ export function slotKey(week: string, day: Day, meal: Meal) {
   return `${week}:${day}:${meal}`;
 }
 
+// ---------- how the plan is stored ----------
+// Each planned dish is its own synced item, "week:day:meal:recipeId", so two people adding to
+// the same meal on different phones both keep their dishes. Older phones stored a whole meal
+// under "week:day:meal"; that is still read, and retired the first time the meal is edited.
+
+export interface PlanEntry {
+  data?: unknown;
+  deleted?: boolean;
+  at: number;
+}
+
+interface DishItem extends PlannedDish {
+  /** When it was first added, to keep a meal's dishes in order. */
+  order: number;
+}
+
+function shortHash(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+/** Sync key for one dish in a meal (sync keys are capped at 200 characters). */
+export function dishKey(slot: string, recipeId: string): string {
+  const k = `${slot}:${recipeId}`;
+  return k.length <= 200 ? k : `${slot}:${recipeId.split("--")[0].slice(0, 120)}#${shortHash(recipeId)}`;
+}
+
+const slotOf = (key: string) => key.split(":").slice(0, 3).join(":");
+const isSlotKey = (key: string) => key.split(":").length === 3;
+
+/** Every meal in the stored plan: "week:day:meal" → its dishes. */
+export function planSlots(plan: Record<string, PlanEntry>): Record<string, Slot> {
+  const whole: Record<string, PlannedDish[]> = {};
+  const known: Record<string, Set<string>> = {};
+  const live: Record<string, DishItem[]> = {};
+  for (const [key, e] of Object.entries(plan)) {
+    if (key.split(":").length < 3) continue;
+    const slot = slotOf(key);
+    if (isSlotKey(key)) {
+      const dishes = (e.data as Slot | undefined)?.dishes;
+      if (!e.deleted && Array.isArray(dishes)) whole[slot] = dishes;
+      continue;
+    }
+    (known[slot] ??= new Set()).add(key);
+    const d = e.data as DishItem | undefined;
+    if (!e.deleted && d?.recipeId) (live[slot] ??= []).push(d);
+  }
+  const out: Record<string, Slot> = {};
+  for (const slot of new Set([...Object.keys(whole), ...Object.keys(live)])) {
+    const older = (whole[slot] ?? []).filter((d) => !known[slot]?.has(dishKey(slot, d.recipeId)));
+    const newer = (live[slot] ?? []).sort((a, b) => a.order - b.order).map(({ recipeId, portions }) => ({ recipeId, portions }));
+    if (older.length + newer.length) out[slot] = { dishes: [...older, ...newer] };
+  }
+  return out;
+}
+
+/**
+ * The writes that turn one meal into `next`: dishes added or changed, dishes removed (null),
+ * and retiring an older whole-meal entry. Dishes nobody touched aren't rewritten, so they can't
+ * overwrite someone else's newer edit.
+ */
+export function slotWrites(plan: Record<string, PlanEntry>, slot: string, next: Slot, now = Date.now()): [string, DishItem | null][] {
+  const wholeLive = !!plan[slot] && !plan[slot].deleted;
+  const current = new Map<string, DishItem>();
+  for (const [key, e] of Object.entries(plan)) {
+    if (!isSlotKey(key) && slotOf(key) === slot && !e.deleted && (e.data as DishItem | undefined)?.recipeId) current.set(key, e.data as DishItem);
+  }
+  const writes: [string, DishItem | null][] = [];
+  const keep = new Set<string>();
+  // A new version of a dish ("sambar" → "sambar--low_oil") takes the old one's place.
+  const base = (id: string) => id.split("--")[0];
+  const orderOf = new Map([...current.values()].map((c) => [base(c.recipeId), c.order]));
+  next.dishes.forEach((d, i) => {
+    const key = dishKey(slot, d.recipeId);
+    keep.add(key);
+    const cur = current.get(key);
+    const item: DishItem = { recipeId: d.recipeId, portions: d.portions, order: cur?.order ?? orderOf.get(base(d.recipeId)) ?? now + i };
+    if (wholeLive || !cur || JSON.stringify(cur.portions) !== JSON.stringify(item.portions)) writes.push([key, item]);
+  });
+  for (const key of current.keys()) if (!keep.has(key)) writes.push([key, null]);
+  if (wholeLive) writes.push([slot, null]);
+  return writes;
+}
+
 export interface Nutrients {
   kcal: number;
   protein: number;

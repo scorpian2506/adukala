@@ -228,8 +228,19 @@ export function useShared(): Record<string, SharedEntry> {
   return useSyncExternalStore(subscribe, getShared, () => EMPTY_SHARED);
 }
 
-export function putShared(kind: SharedKind, key: string, data: unknown) {
-  write(KEYS.shared, { ...getShared(), [`${kind}:${key}`]: { data, at: Date.now() } });
+/** `at` defaults to now; pass 0 for a placeholder that any real edit, here or on the server, should beat. */
+export function putShared(kind: SharedKind, key: string, data: unknown, at = Date.now()) {
+  write(KEYS.shared, { ...getShared(), [`${kind}:${key}`]: { data, at } });
+  changed();
+}
+
+/** Several writes at once (null removes). */
+export function patchShared(kind: SharedKind, writes: [key: string, data: unknown][]) {
+  if (!writes.length) return;
+  const at = Date.now();
+  const next = { ...getShared() };
+  for (const [key, data] of writes) next[`${kind}:${key}`] = data === null ? { deleted: true, at } : { data, at };
+  write(KEYS.shared, next);
   changed();
 }
 

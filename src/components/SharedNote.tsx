@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useAccount } from "@/lib/account";
+import { syncNow, useAccount } from "@/lib/account";
 
 /** Says who sees this page's data: the household when signed in, only this phone otherwise. */
 export function SharedNote({ what }: { what: string }) {
@@ -30,7 +30,18 @@ export function SharedNote({ what }: { what: string }) {
           </Link>
         </>
       )}
-      {acct.syncError ? " · not synced yet" : ""}
+      {acct.syncError ? (
+        <span className="text-chilli">
+          {" · "}not synced: {acct.syncError}{" "}
+          <button onClick={() => void syncNow()} className="underline underline-offset-2">
+            Retry
+          </button>
+        </span>
+      ) : acct.lastSync ? (
+        ` · synced ${new Date(acct.lastSync).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+      ) : (
+        " · syncing…"
+      )}
     </p>
   );
 }

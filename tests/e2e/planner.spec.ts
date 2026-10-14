@@ -192,6 +192,13 @@ test("the plan and family are shared with the household", async ({ browser }) =>
   await b.getByRole("tab").nth(2).click();
   await addDish(b, "Lunch", "Sambar");
   await expect(a.getByRole("button", { name: /Sambar, edit portions/ })).toBeVisible({ timeout: 30_000 });
+
+  // Both add to the same meal at the same moment: neither phone's dish overwrites the other's.
+  await Promise.all([addDish(a, "Dinner", "Jeera Rice"), addDish(b, "Dinner", "Matar Paneer")]);
+  for (const p of [a, b]) for (const dish of ["Curd Rice", "Jeera Rice", "Matar Paneer"]) {
+    await expect(p.getByRole("button", { name: new RegExp(`${dish}, edit portions`) })).toBeVisible({ timeout: 30_000 });
+  }
+  await expect(a.getByTestId("shared-note").first()).toContainText(/synced \d/);
 });
 
 test("adults need height and weight; the calorie table sets the goal", async ({ page }) => {

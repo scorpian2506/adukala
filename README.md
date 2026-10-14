@@ -49,7 +49,7 @@ When a video has no written recipe, Adukala says so and offers videos from cooks
 - **Plan:** Mon–Sun, four meals a day, built from the recipe library with starred dishes first. Each dish has a portion per person. It shows calories and protein per person for each day and the whole week.
 - **Calories:** worked out from each recipe's measured ingredients (`src/lib/nutrition.ts` with IFCT/USDA data in `nutrition-data.ts`). Only about 12% of deep-frying oil is counted, since most isn't eaten. These are estimates.
 - **Shopping list:** for the whole week, one day, or one meal (every meal on the plan has a **Shop** link). It covers only the dishes planned in that scope that someone is eating, at the same servings as each dish's "cook N", using the tweaked version when there is one. Nothing else is added. Items are merged across recipes and grouped by aisle. Water is left out and salt is hidden. Each list keeps its own ticks, which sync, and it can be shared or copied.
-- **Sync:** family members (children included), plan slots (one item per meal slot) and shopping ticks sync with the household. Changes go up within about a second. An open app pulls everyone else's changes every 10 seconds, and again when you come back to it. The plan and family pages say who they're shared with.
+- **Sync:** family members (children included), the plan (one item per planned dish, so two people adding to the same meal both keep their dishes) and shopping ticks sync with the household. Changes go up within about a second. An open app pulls everyone else's changes every 10 seconds, and again when you come back to it. The plan and family pages say who they're shared with and when they last synced, or show the error with a Retry button. A phone that opens before its first sync never resets anyone's profile.
 
 ## Accounts and households
 
@@ -94,7 +94,7 @@ From datacenter IPs such as Vercel's, YouTube blocks its watch page and player A
 ## Tests
 
 ```bash
-npm test            # 422 unit tests (Vitest): recipes, search, converter, accounts and sync against real Postgres
+npm test            # 428 unit tests (Vitest): recipes, search, converter, accounts and sync against real Postgres
 npm run test:e2e    # 55 browser tests (Playwright, iPhone viewport, production build, stubbed APIs)
 npm run test:live   # opt-in: real YouTube calls (E2E_BASE_URL=https://… to hit a deployment)
 npm run test:batch  # real dishes → real videos → converter → quality rules (BASE=https://…)

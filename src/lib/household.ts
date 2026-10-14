@@ -3,8 +3,8 @@
 import { useEffect, useMemo } from "react";
 import { useAccount } from "./account";
 import { MEMBER_COLORS, dailyTarget, defaultPortion, eats, memberForUser, type Member } from "./family";
-import { DAYS, MEALS, fitPortions, slotKey, type Day, type Meal, type Nutrients, type Slot } from "./planner";
-import { getShared, putShared, removeShared, sharedOf, useShared } from "./store";
+import { DAYS, MEALS, fitPortions, planSlots, slotKey, slotWrites, type Day, type Meal, type Nutrients, type PlanEntry, type Slot } from "./planner";
+import { getShared, patchShared, putShared, removeShared, sharedOf, useShared, type SharedEntry } from "./store";
 import type { Recipe } from "./types";
 
 // Family members, the weekly plan and shopping ticks — shared with the household when signed in.
@@ -21,13 +21,14 @@ export function useFamily(): Member[] {
   );
 
   // Everyone with a login gets a profile automatically (ids are stable, so two phones can't duplicate them).
+  // Stamped at time 0: this can run before the first sync, and must never beat a profile someone already filled in.
   const logins = acct.status === "in" ? acct.household?.members : undefined;
   useEffect(() => {
     if (!logins) return;
     const have = sharedOf<Member>(getShared(), "member");
     logins.forEach((u, i) => {
       const id = `user:${u.username}`;
-      if (!have[id]) putShared("member", id, memberForUser(u.username, u.displayName, Object.keys(have).length + i));
+      if (!have[id]) putShared("member", id, memberForUser(u.username, u.displayName, Object.keys(have).length + i), 0);
     });
   }, [logins]);
 
@@ -55,10 +56,20 @@ export function nextColor(members: Member[]) {
 }
 
 /** All slots of a week: "mon:breakfast" → Slot. */
+function planEntries(shared: Record<string, SharedEntry>): Record<string, PlanEntry> {
+  const out: Record<string, PlanEntry> = {};
+  for (const [k, e] of Object.entries(shared)) if (k.startsWith("plan:")) out[k.slice(5)] = e;
+  return out;
+}
+
+function allSlots(): Record<string, Slot> {
+  return planSlots(planEntries(getShared()));
+}
+
 export function usePlanWeek(week: string): Record<string, Slot> {
   const shared = useShared();
   return useMemo(() => {
-    const all = sharedOf<Slot>(shared, "plan");
+    const all = planSlots(planEntries(shared));
     const out: Record<string, Slot> = {};
     for (const d of DAYS) for (const m of MEALS) {
       const s = all[slotKey(week, d, m)];
@@ -68,14 +79,13 @@ export function usePlanWeek(week: string): Record<string, Slot> {
   }, [shared, week]);
 }
 
+/** Save one meal. Only the dishes that changed are written, so someone else's dish in the same meal survives. */
 export function setSlot(week: string, day: Day, meal: Meal, slot: Slot) {
-  if (slot.dishes.length) putShared("plan", slotKey(week, day, meal), slot);
-  else removeShared("plan", slotKey(week, day, meal));
+  patchShared("plan", slotWrites(planEntries(getShared()), slotKey(week, day, meal), slot));
 }
 
 function currentSlot(week: string, day: Day, meal: Meal): Slot {
-  const s = sharedOf<Slot>(getShared(), "plan")[slotKey(week, day, meal)];
-  return s?.dishes ? s : { dishes: [] };
+  return allSlots()[slotKey(week, day, meal)] ?? { dishes: [] };
 }
 
 /** Add a dish for everyone whose diet allows it, at their default portion. */
@@ -98,7 +108,7 @@ export function updateDish(week: string, day: Day, meal: Meal, recipeId: string,
 /** Set everyone's portions on these days so their meals add up to their daily target. */
 export function fitDays(week: string, days: readonly Day[], members: Member[], perServing: (recipeId: string) => Nutrients | null) {
   const targets = Object.fromEntries(members.map((m) => [m.id, dailyTarget(m).kcal]));
-  const all = sharedOf<Slot>(getShared(), "plan");
+  const all = allSlots();
   for (const d of days) {
     const today: Partial<Record<Meal, Slot>> = {};
     for (const m of MEALS) if (all[slotKey(week, d, m)]?.dishes?.length) today[m] = all[slotKey(week, d, m)];
@@ -117,7 +127,7 @@ export function removeDish(week: string, day: Day, meal: Meal, recipeId: string)
 
 /** Copy every slot of one week into another (filling only empty slots). */
 export function copyWeek(from: string, to: string) {
-  const all = sharedOf<Slot>(getShared(), "plan");
+  const all = allSlots();
   for (const d of DAYS) for (const m of MEALS) {
     const src = all[slotKey(from, d, m)];
     if (src?.dishes?.length && !all[slotKey(to, d, m)]?.dishes?.length) setSlot(to, d, m, src);

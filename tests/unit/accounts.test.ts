@@ -164,6 +164,18 @@ describe("households and sync", () => {
     expect(all.items.find((i: { key: string }) => i.key === "m:kid1").data.name).toBe("Ammu");
   });
 
+  it("a blank profile made before a phone's first sync never replaces a filled-in one", async () => {
+    const a = await newUser("sriram");
+    const b = await newUser("wife", { inviteCode: a.body.household.inviteCode });
+    const real = { id: "user:sriram", name: "Sriram", kind: "adult", age: 38, weight: 80 };
+    await sync(post("/api/sync", { items: [{ kind: "member", key: "user:sriram", data: real, updatedAt: 100 }] }, a.cookie));
+    // The wife's phone opens before its first sync and makes placeholder profiles, stamped at 0.
+    const res = await (await sync(post("/api/sync", { items: [{ kind: "member", key: "user:sriram", data: { id: "user:sriram", name: "Sriram", kind: "adult", age: 30 }, updatedAt: 0 }] }, b.cookie))).json();
+    expect(res.items.find((i: { key: string }) => i.key === "user:sriram").data.age).toBe(38);
+    const again = await (await sync(post("/api/sync", { items: [] }, a.cookie))).json();
+    expect(again.items.find((i: { key: string }) => i.key === "user:sriram").data.age).toBe(38);
+  });
+
   it("renames the household", async () => {
     const a = await newUser("sriram");
     const res = await rename(post("/api/household/rename", { name: "  Swaminathan   home " }, a.cookie));
