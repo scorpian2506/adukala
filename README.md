@@ -28,6 +28,12 @@ The core app needs no AI and no API key.
    - Versions have stable ids like `sambar--low_oil-high_protein` and are re-derived from the base recipe, never stored.
    - Each signed-in person can set **usual tweaks** (suggested from their goal). They're pre-ticked on every recipe and in the planner, and can be unticked.
    - Jain, vegan and diabetic friendly still need AI.
+5. **Ingredient swaps** (`src/lib/swaps.ts`, also without AI). Tap **Swap** next to any ingredient:
+   - **Leave it out:** it's removed from every step, and the step text is tidied. Fat that something is fried in can't simply go (the app offers oil instead). A main ingredient comes with a warning.
+   - **Use an alternative**, same amount: oil for ghee or butter, ghee for butter, any oil for coconut oil, jaggery and sugar either way, milk for cream.
+   - **Ginger & garlic:** ready ginger garlic paste instead of fresh (about 5 g per tsp, offered in 35 recipes where both always go in together; the chopping steps become one measure), or fresh instead of paste (we add the grate and crush steps).
+   - Each person can set kitchen preferences in their profile, e.g. "Ghee: oil instead" and "Ginger & garlic: ready paste". These apply to every recipe and every planned dish. Ghee drizzled on top is left out; sweets keep their ghee.
+   - Swaps are part of the version id (`aloo-matar--low_oil~ggp~oil_ghee`), so cooking, the plan and the shopping list all use the swapped recipe.
 
 When a video has no written recipe, Adukala says so and offers videos from cooks who do publish one. It never invents amounts from a title. Any amount it has to estimate ("a few curry leaves", "salt to taste") is marked **est.** and listed in a warning.
 
@@ -43,7 +49,7 @@ When a video has no written recipe, Adukala says so and offers videos from cooks
 - **Plan:** Mon–Sun, four meals a day, built from the recipe library with starred dishes first. Each dish has a portion per person. It shows calories and protein per person for each day and the whole week.
 - **Calories:** worked out from each recipe's measured ingredients (`src/lib/nutrition.ts` with IFCT/USDA data in `nutrition-data.ts`). Only about 12% of deep-frying oil is counted, since most isn't eaten. These are estimates.
 - **Shopping list:** for the whole week, one day, or one meal (every meal on the plan has a **Shop** link). It covers only the dishes planned in that scope that someone is eating, at the same servings as each dish's "cook N", using the tweaked version when there is one. Nothing else is added. Items are merged across recipes and grouped by aisle. Water is left out and salt is hidden. Each list keeps its own ticks, which sync, and it can be shared or copied.
-- **Sync:** family members, plan slots (one item per meal slot) and shopping ticks sync with the household.
+- **Sync:** family members (children included), plan slots (one item per meal slot) and shopping ticks sync with the household. Changes go up within about a second. An open app pulls everyone else's changes every 10 seconds, and again when you come back to it. The plan and family pages say who they're shared with.
 
 ## Accounts and households
 
@@ -88,8 +94,8 @@ From datacenter IPs such as Vercel's, YouTube blocks its watch page and player A
 ## Tests
 
 ```bash
-npm test            # 413 unit tests (Vitest): recipes, search, converter, accounts and sync against real Postgres
-npm run test:e2e    # 52 browser tests (Playwright, iPhone viewport, production build, stubbed APIs)
+npm test            # 422 unit tests (Vitest): recipes, search, converter, accounts and sync against real Postgres
+npm run test:e2e    # 55 browser tests (Playwright, iPhone viewport, production build, stubbed APIs)
 npm run test:live   # opt-in: real YouTube calls (E2E_BASE_URL=https://… to hit a deployment)
 npm run test:batch  # real dishes → real videos → converter → quality rules (BASE=https://…)
 npm run validate    # quality rules for the recipe library

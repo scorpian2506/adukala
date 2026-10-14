@@ -96,7 +96,7 @@ export function ConfirmSheet({
   if (confirm.kind === "mustStart" || confirm.kind === "mustWait") {
     const start = confirm.kind === "mustStart";
     return (
-      <div className="absolute inset-0 z-50 flex flex-col justify-end bg-ink/45 animate-fade" onClick={onStay} role="dialog" aria-modal="true" aria-labelledby="confirm-h">
+      <div className="fixed inset-0 z-50 flex flex-col justify-end lg:absolute bg-ink/45 animate-fade" onClick={onStay} role="dialog" aria-modal="true" aria-labelledby="confirm-h">
         <div className="safe-b rounded-t-[30px] bg-paper px-5 pt-3 animate-rise" onClick={(e) => e.stopPropagation()}>
           <div className="mx-auto h-1 w-10 rounded-full bg-line-2" />
           <h2 id="confirm-h" className="font-display mt-4 text-[32px] leading-none">
@@ -127,7 +127,7 @@ export function ConfirmSheet({
     whistles: { h: "Whistles not done", p: `You've still got ${confirm.left} whistle${confirm.left === 1 ? "" : "s"} to go. Only move on once you've heard them all.`, yes: "All whistles done — next" },
   }[confirm.kind as "running" | "notStarted" | "paused" | "whistles"];
   return (
-    <div className="absolute inset-0 z-50 flex flex-col justify-end bg-ink/45 animate-fade" onClick={onStay} role="dialog" aria-modal="true" aria-labelledby="confirm-h">
+    <div className="fixed inset-0 z-50 flex flex-col justify-end lg:absolute bg-ink/45 animate-fade" onClick={onStay} role="dialog" aria-modal="true" aria-labelledby="confirm-h">
       <div className="safe-b rounded-t-[30px] bg-paper px-5 pt-3 animate-rise" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto h-1 w-10 rounded-full bg-line-2" />
         <h2 id="confirm-h" className="font-display mt-4 text-[32px] leading-none">

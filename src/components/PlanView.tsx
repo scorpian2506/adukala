@@ -8,6 +8,7 @@ import { searchRecipes } from "@/lib/search";
 import { markedIds, saveProgress, useMarks, useSavedRecipes } from "@/lib/store";
 import { addDish, copyWeek, fitDays, removeDish, updateDish, useFamily, useMe, usePlanWeek } from "@/lib/household";
 import { checkDay, dailyTarget, eats, usualTweaks, type Check as Status, type Member } from "@/lib/family";
+import { usualSwaps } from "@/lib/swaps";
 import { recipeNutrition } from "@/lib/nutrition";
 import { DAYS, DAY_LABEL, MEALS, MEAL_LABEL, addWeeks, dayDate, personTotals, potServings, todayDay, weekLabel, weekStart, type Day, type Meal, type Nutrients, type PlannedDish, type Slot } from "@/lib/planner";
 import { useHydrated } from "@/lib/useRecipe";
@@ -16,6 +17,7 @@ import { BottomNav } from "./Nav";
 import { DishArt } from "./DishArt";
 import { HUE_BG } from "./RecipeCard";
 import { Avatar } from "./FamilyView";
+import { SharedNote } from "./SharedNote";
 import { ArrowLeft, ArrowRight, Check, Close, Minus, Plus, SearchIcon, Star } from "./Icons";
 
 export function PlanView() {
@@ -57,6 +59,9 @@ export function PlanView() {
               <Plus size={14} />
             </span>
           </Link>
+        </div>
+        <div className="mt-1">
+          <SharedNote what="the plan" />
         </div>
         <div className="mt-4 flex items-center justify-between rounded-full border border-line-2 p-1">
           <button onClick={() => setWeek((w) => addWeeks(w, -1))} className="press grid h-9 w-9 place-items-center rounded-full" aria-label="Previous week">
@@ -202,7 +207,7 @@ export function PlanView() {
       </div>
       <p className="mx-5 mt-4 text-[12px] text-ink-3">Calories are estimates from each recipe&rsquo;s measured ingredients.</p>
 
-      {picker && <DishPicker members={members} tweaks={myTweaks} onClose={() => setPicker(null)} onPick={(r) => (addDish(week, day, picker, versionOf(r, myTweaks), members), setPicker(null))} />}
+      {picker && <DishPicker members={members} tweaks={myTweaks} onClose={() => setPicker(null)} onPick={(r) => (addDish(week, day, picker, versionOf(r, myTweaks, usualSwaps(me?.swaps, r)), members), setPicker(null))} />}
       {editing && (
         <PortionSheet
           recipe={byId.get(editing.dish.recipeId)!}
@@ -360,7 +365,7 @@ function DishPicker({ members, tweaks, onClose, onPick }: { members: Member[]; t
   const someoneCantEat = (r: Recipe) => members.some((m) => !eats(m, r.diet));
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col justify-end bg-ink/40 animate-fade" onClick={onClose} role="dialog" aria-modal="true" aria-label="Pick a dish">
+    <div className="fixed inset-0 z-50 flex flex-col justify-end lg:absolute bg-ink/40 animate-fade" onClick={onClose} role="dialog" aria-modal="true" aria-label="Pick a dish">
       <div className="safe-b flex max-h-[88%] flex-col rounded-t-[30px] bg-paper px-4 pt-3 animate-rise" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto h-1 w-10 rounded-full bg-line-2" />
         <div className="mt-3 flex items-center gap-2 rounded-2xl border border-line-2 bg-card px-3">
@@ -431,7 +436,9 @@ function PortionSheet({
   const parsed = parseVariantId(recipe.id);
   const base = (parsed && lookup(parsed.base)) || recipe;
   const [tweaks, setTweaks] = useState<CustomisationId[]>(() => (base === recipe ? [] : (parsed?.tweaks ?? [])));
-  const version = versionOf(base, tweaks);
+  // Swaps (no ghee, ready paste…) stay with the dish while tweaks change.
+  const swaps = base === recipe ? [] : (parsed?.swaps ?? []);
+  const version = versionOf(base, tweaks, swaps);
   const total = potServings(portions);
   const n = recipeNutrition(version).perServing;
   const step = (id: string, d: number) => setPortions((p) => ({ ...p, [id]: Math.max(0, Math.min(4, (p[id] ?? 0) + d)) }));
@@ -439,7 +446,7 @@ function PortionSheet({
   const eaters = members.filter((m) => (portions[m.id] ?? 0) > 0);
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col justify-end bg-ink/40 animate-fade" onClick={onClose} role="dialog" aria-modal="true" aria-label={`Portions of ${recipe.name}`}>
+    <div className="fixed inset-0 z-50 flex flex-col justify-end lg:absolute bg-ink/40 animate-fade" onClick={onClose} role="dialog" aria-modal="true" aria-label={`Portions of ${recipe.name}`}>
       <div className="safe-b max-h-[90%] overflow-y-auto rounded-t-[30px] bg-paper px-5 pt-3 animate-rise" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto h-1 w-10 rounded-full bg-line-2" />
         <h2 className="font-display mt-4 text-[30px] leading-none">{base.name}</h2>
@@ -486,17 +493,19 @@ function PortionSheet({
           <button onClick={onRemove} className="press rounded-2xl border border-line-2 px-4 text-[14px] text-chilli">
             Remove
           </button>
+          <button onClick={() => onSave(portions, version.id)} className="press flex items-center justify-center gap-1.5 rounded-2xl border border-line-2 bg-card py-3.5 text-[14px] font-medium">
+            <Check size={16} /> Save
+          </button>
           <button
             onClick={() => {
+              // Keep any portion or tweak changes, then go straight to cooking.
+              onSave(portions, version.id);
               saveProgress({ recipeId: version.id, servings: Math.max(1, total), index: 0 });
               router.push(`/cook/${version.id}`);
             }}
-            className="press rounded-2xl border border-line-2 bg-card py-3.5 text-[14px] font-medium"
+            className="press flex items-center justify-center gap-1.5 rounded-2xl bg-ink py-3.5 text-[14px] font-medium text-paper"
           >
-            Cook now
-          </button>
-          <button onClick={() => onSave(portions, version.id)} className="press flex items-center justify-center gap-1.5 rounded-2xl bg-ink py-3.5 text-[14px] font-medium text-paper">
-            <Check size={16} /> Save
+            Cook now <ArrowRight size={16} />
           </button>
         </div>
       </div>

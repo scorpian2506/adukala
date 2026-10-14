@@ -7,6 +7,7 @@ import { deleteMember, nextColor, saveMember, useFamily } from "@/lib/household"
 import { useHydrated } from "@/lib/useRecipe";
 import { useAccount } from "@/lib/account";
 import { TopBar } from "./Nav";
+import { SharedNote } from "./SharedNote";
 import { Check, Plus, Trash, User } from "./Icons";
 
 export function Avatar({ m, size = 40 }: { m: Pick<Member, "name" | "color">; size?: number }) {
@@ -38,6 +39,9 @@ export function FamilyView() {
           Everyone you cook for — including little ones without a login. Their goals set the daily calorie targets in your meal plan.
           {acct.status !== "in" && " Sign in on the Me tab to share this with your household."}
         </p>
+        <div className="mt-2">
+          <SharedNote what="your family" />
+        </div>
       </div>
 
       <ul className="mx-4 mt-6 space-y-2">
@@ -129,7 +133,7 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
   const toggleTweak = (id: CustomisationId) => set("tweaks", tweaks.includes(id) ? tweaks.filter((x) => x !== id) : [...tweaks, id]);
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col justify-end bg-ink/40 animate-fade" onClick={onClose} role="dialog" aria-modal="true" aria-label={isNew ? "Add family member" : `Edit ${member.name}`}>
+    <div className="fixed inset-0 z-50 flex flex-col justify-end lg:absolute bg-ink/40 animate-fade" onClick={onClose} role="dialog" aria-modal="true" aria-label={isNew ? "Add family member" : `Edit ${member.name}`}>
       <form
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
@@ -259,6 +263,31 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
               })}
             </div>
             <p className="mt-1 text-[12px] text-ink-3">Ticked for @{m.username} whenever they open a recipe or plan a dish — untick any time.</p>
+
+            <p className="mt-4 text-[13px] font-medium text-ink-2">Ghee</p>
+            <Seg
+              label="Ghee"
+              value={m.swaps?.ghee ?? "keep"}
+              onChange={(v) => set("swaps", { ...m.swaps, ghee: v === "keep" ? undefined : v })}
+              options={[
+                { id: "keep", label: "As written" },
+                { id: "oil", label: "Oil instead" },
+                { id: "leave", label: "Leave it out" },
+              ]}
+            />
+            <p className="mt-1 text-[12px] text-ink-3">Ghee drizzled on top is left out; ghee something is cooked in becomes oil. Sweets keep theirs.</p>
+
+            <p className="mt-4 text-[13px] font-medium text-ink-2">Ginger &amp; garlic</p>
+            <Seg
+              label="Ginger and garlic"
+              value={m.swaps?.gingerGarlic ?? "keep"}
+              onChange={(v) => set("swaps", { ...m.swaps, gingerGarlic: v === "keep" ? undefined : v })}
+              options={[
+                { id: "keep", label: "As written" },
+                { id: "paste", label: "Ready paste" },
+                { id: "fresh", label: "Always fresh" },
+              ]}
+            />
             </>)}
           </>
         )}

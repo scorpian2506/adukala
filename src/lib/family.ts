@@ -1,6 +1,7 @@
 // Family profiles and daily targets. Estimates only — not medical advice.
 
 import type { CustomisationId } from "./tweaks";
+import type { SwapPrefs } from "./swaps";
 
 export type Goal = "lose" | "maintain" | "gain" | "muscle";
 export type Activity = "sedentary" | "light" | "moderate" | "active" | "very";
@@ -22,6 +23,8 @@ export interface Member {
   rateKg?: number;
   /** Recipe tweaks applied by default when this person opens a recipe or plans a dish. */
   tweaks?: CustomisationId[];
+  /** Kitchen swaps applied by default: no ghee, ready ginger garlic paste. */
+  swaps?: SwapPrefs;
   diet: "veg" | "egg" | "nonveg";
   color: string;
 }

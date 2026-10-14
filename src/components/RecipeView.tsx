@@ -11,6 +11,8 @@ import type { Ingredient, Recipe } from "@/lib/types";
 import { recipeNutrition } from "@/lib/nutrition";
 import { addDish, useFamily, useMe } from "@/lib/household";
 import { GOALS, usualTweaks } from "@/lib/family";
+import { ALTS, canonicalSwaps, swapOptions, swapTarget, usualSwaps, type Alt, type SwapId } from "@/lib/swaps";
+import { foodKey } from "@/lib/nutrition";
 import { DAYS, DAY_LABEL, MEALS, MEAL_LABEL, dayDate, todayDay, weekStart, type Day } from "@/lib/planner";
 import { DishArt } from "./DishArt";
 import { Dots, HUE_BG } from "./RecipeCard";
@@ -51,8 +53,20 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const [error, setError] = useState<string | null>(null);
   const [showSteps, setShowSteps] = useState(false);
 
+  // Ingredient swaps (no ghee, ready ginger garlic paste…): from your profile until you change them.
+  const defaultSwaps = recipe.variant?.length ? [] : usualSwaps(me?.swaps, recipe);
+  const [pickedSwaps, setPickedSwaps] = useState<SwapId[] | null>(null);
+  const swaps = pickedSwaps ?? defaultSwaps;
+  const [swapping, setSwapping] = useState<string | null>(null);
+  const setSwaps = (f: (cur: SwapId[]) => SwapId[]) => setPickedSwaps((cur) => canonicalSwaps(f(cur ?? defaultSwaps)));
+
   const offlineKey = mods.filter((m) => OFFLINE_CUSTOMISATIONS.includes(m)).join(",");
-  const tweak = useMemo(() => tweakRecipe(recipe, offlineKey ? (offlineKey.split(",") as CustomisationId[]) : []), [recipe, offlineKey]);
+  const swapKey = swaps.join(",");
+  const tweak = useMemo(
+    () => tweakRecipe(recipe, offlineKey ? (offlineKey.split(",") as CustomisationId[]) : [], swapKey ? swapKey.split(",") : []),
+    [recipe, offlineKey, swapKey],
+  );
+  const options = swapOptions(recipe);
   /** What you'll actually cook: the recipe with the rule-based tweaks applied. */
   const view = tweak.recipe;
   const before = new Map(recipe.ingredients.map((i) => [i.id, i.qty]));
@@ -278,18 +292,50 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
             );
           })}
         </div>
-        {mods.length > 0 && (
+        {(options.paste || options.fresh) && (
+          <div className="mt-3 flex flex-wrap gap-2 px-5" role="group" aria-label="Swaps">
+            {options.paste && (
+              <button
+                onClick={() => setSwaps((c) => (c.includes("ggp") ? c.filter((x) => x !== "ggp") : [...c, "ggp"]))}
+                aria-pressed={swaps.includes("ggp")}
+                className={`press inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] ${swaps.includes("ggp") ? "border-ink bg-ink text-paper" : "border-dashed border-line-2 text-ink-2"}`}
+              >
+                {swaps.includes("ggp") && <Check size={14} />}
+                Use ginger garlic paste
+              </button>
+            )}
+            {options.fresh && (
+              <button
+                onClick={() => setSwaps((c) => (c.includes("ggf") ? c.filter((x) => x !== "ggf") : [...c, "ggf"]))}
+                aria-pressed={swaps.includes("ggf")}
+                className={`press inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] ${swaps.includes("ggf") ? "border-ink bg-ink text-paper" : "border-dashed border-line-2 text-ink-2"}`}
+              >
+                {swaps.includes("ggf") && <Check size={14} />}
+                Use fresh ginger &amp; garlic
+              </button>
+            )}
+          </div>
+        )}
+        <p className="mt-2 px-5 text-[12px] text-ink-3">Don&rsquo;t have something, or don&rsquo;t want it? Tap <strong className="font-medium text-ink-2">Swap</strong> next to any ingredient.</p>
+        {(mods.length > 0 || tweak.swaps.length > 0) && (
           <div className="mx-5 mt-4 animate-rise rounded-2xl bg-paper-2 p-4" aria-live="polite">
             {tweak.changes.length > 0 && (
               <>
                 <p className="eyebrow text-ink-3">What changed</p>
                 <ul className="mt-1.5 space-y-1 text-[13px] text-ink-2" data-testid="tweak-changes">
-                  {tweak.changes.map((c) => (
-                    <li key={c.name} className="flex justify-between gap-3">
+                  {tweak.changes.map((c, i) => (
+                    <li key={`${c.id ?? c.name}-${i}`} className="flex items-center justify-between gap-3">
                       <span className="min-w-0 truncate">{c.name}</span>
-                      <span className="shrink-0 font-mono tnum">
-                        {c.to === 0 ? "left out" : `${formatQty(c.from * factor, c.unit)} → ${formatQty(c.to * factor, c.unit)}`}
-                      </span>
+                      {c.swap ? (
+                        <span className="flex shrink-0 items-center gap-2">
+                          <span className="font-mono">→ {c.swap}</span>
+                          <button onClick={() => setSwaps((cur) => cur.filter((t) => t !== c.token))} className="press rounded-full border border-line-2 bg-card px-2 py-0.5 text-[11px] text-ink" aria-label={`Undo ${c.name}`}>
+                            Undo
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="shrink-0 font-mono tnum">{c.to === 0 ? "left out" : `${formatQty(c.from * factor, c.unit)} → ${formatQty(c.to * factor, c.unit)}`}</span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -302,6 +348,11 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                   <span className="font-medium text-ink">{CUSTOMISATIONS.find((c) => c.id === m)?.label}:</span> {tweak.notes[m]}
                 </p>
               ))}
+            {tweak.swapNotes.map((n) => (
+              <p key={n} className="mt-2 text-[13px] leading-snug text-ink-2">
+                {n}
+              </p>
+            ))}
             {needsAI && (
               <p className="mt-2 text-[13px] leading-snug text-ink-2">
                 {CUSTOMISATIONS.filter((c) => mods.includes(c.id) && !OFFLINE_CUSTOMISATIONS.includes(c.id))
@@ -364,21 +415,28 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
             <ul className="mt-1">
               {g.items.map((ing) => {
                 const was = before.get(ing.id);
-                const changed = view !== recipe && was !== undefined && Math.abs(was - ing.qty) > 1e-6;
+                const orig = recipe.ingredients.find((i) => i.id === ing.id);
+                const renamed = orig && orig.name !== ing.name ? orig.name : null;
+                const changed = view !== recipe && was !== undefined && !renamed && Math.abs(was - ing.qty) > 1e-6;
                 return (
-                <li key={ing.id} className="flex items-baseline justify-between gap-4 border-b border-line py-3">
-                  <div className="min-w-0">
+                <li key={ing.id} className="flex items-baseline justify-between gap-3 border-b border-line py-3">
+                  <div className="min-w-0 flex-1">
                     <p className="text-[15px] text-ink">
                       {ing.name}
                       {ing.estimated && <span className="ml-1.5 rounded bg-turmeric-soft px-1.5 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-ink-2">est.</span>}
                     </p>
-                    {(ing.native || ing.approx) && (
-                      <p className="mt-0.5 text-[12px] text-ink-3">{[ing.native, ing.approx].filter(Boolean).join(" · ")}</p>
+                    {(ing.native || ing.approx || renamed) && (
+                      <p className="mt-0.5 text-[12px] text-ink-3">{[renamed && `instead of ${renamed.toLowerCase()}`, ing.native, ing.approx].filter(Boolean).join(" · ")}</p>
                     )}
                   </div>
-                  <span className="shrink-0 text-right font-mono text-[14px] text-ink tnum">
-                    {formatQty(ing.qty * factor, ing.unit)}
-                    {changed && <span className="block text-[11px] text-ink-3 line-through">{formatQty(was! * factor, ing.unit)}</span>}
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="text-right font-mono text-[14px] text-ink tnum">
+                      {formatQty(ing.qty * factor, ing.unit)}
+                      {changed && <span className="block text-[11px] text-ink-3 line-through">{formatQty(was! * factor, ing.unit)}</span>}
+                    </span>
+                    <button onClick={() => setSwapping(ing.id)} className="press -mr-1 rounded-full px-1 text-[11px] text-ink-3 underline underline-offset-2" aria-label={`Swap ${ing.name}`}>
+                      Swap
+                    </button>
                   </span>
                 </li>
                 );
@@ -443,7 +501,79 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
           </button>
         )}
       </div>
+      {swapping && (
+        <SwapSheet
+          recipe={recipe}
+          view={view}
+          id={swapping}
+          swaps={swaps}
+          onPick={(next) => {
+            setSwaps(() => next);
+            setSwapping(null);
+          }}
+          onClose={() => setSwapping(null)}
+        />
+      )}
     </main>
+  );
+}
+
+/** Choose what to do with one ingredient: as written, an alternative, or leave it out. */
+function SwapSheet({ recipe, view, id, swaps, onPick, onClose }: { recipe: Recipe; view: Recipe; id: string; swaps: SwapId[]; onPick: (s: SwapId[]) => void; onClose: () => void }) {
+  const opts = swapOptions(recipe);
+  const orig = recipe.ingredients.find((i) => i.id === id);
+  const shown = view.ingredients.find((i) => i.id === id) ?? orig;
+  const mine = swaps.filter((t) => swapTarget(t)?.id !== id);
+  const current = swaps.find((t) => swapTarget(t)?.id === id);
+  const o = opts.ingredients[id];
+  const key = orig ? foodKey(orig.name) : undefined;
+  const gg = key === "ginger" || key === "garlic";
+  type Choice = { label: string; hint?: string; on: boolean; next: SwapId[]; disabled?: boolean };
+  const choices: Choice[] = [];
+  if (!orig) {
+    // A row made by a swap (paste for fresh, or fresh for paste): the way back.
+    const t = swaps.includes("ggp") ? "ggp" : "ggf";
+    choices.push({ label: t === "ggp" ? "Fresh ginger and garlic, as written" : "Ginger garlic paste, as written", on: false, next: swaps.filter((x) => x !== t) });
+  } else {
+    choices.push({ label: "As written", on: !current && !(gg && swaps.includes("ggp")) && !(key === "ginger garlic paste" && swaps.includes("ggf")), next: gg ? mine.filter((x) => x !== "ggp") : key === "ginger garlic paste" ? mine.filter((x) => x !== "ggf") : mine });
+    for (const a of o?.alts ?? []) choices.push({ label: `Use ${ALTS[a as Alt].label.toLowerCase()} instead`, on: current === `${a}_${id}`, next: [...mine, `${a}_${id}`] });
+    if (gg && opts.paste) choices.push({ label: "Use ready ginger garlic paste", hint: "Replaces both the ginger and the garlic", on: swaps.includes("ggp"), next: [...mine, "ggp"] });
+    if (key === "ginger garlic paste" && opts.fresh) choices.push({ label: "Use fresh ginger and garlic", hint: "We add the peeling and chopping steps", on: swaps.includes("ggf"), next: [...mine, "ggf"] });
+    choices.push({
+      label: "Leave it out",
+      hint: o?.canRemove ? (o.main ? "It's a main part of this dish, so it will taste quite different." : "Every step that uses it is updated.") : o?.removeBlock,
+      on: current === `x_${id}`,
+      next: [...mine, `x_${id}`],
+      disabled: !o?.canRemove,
+    });
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-ink/40 animate-fade lg:absolute" onClick={onClose} role="dialog" aria-modal="true" aria-label={`Swap ${shown?.name ?? "ingredient"}`}>
+      <div className="safe-b rounded-t-[30px] bg-paper px-5 pb-4 pt-3 animate-rise" onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto h-1 w-10 rounded-full bg-line-2" />
+        <h2 className="font-display mt-4 text-[28px] leading-none">{orig?.name ?? shown?.name}</h2>
+        <p className="mt-1 text-[13px] text-ink-3">Only for this dish. To do it every time, set it in your profile.</p>
+        <ul className="mt-4 space-y-2">
+          {choices.map((c) => (
+            <li key={c.label}>
+              <button
+                disabled={c.disabled}
+                onClick={() => onPick(c.next)}
+                role="radio"
+                aria-checked={c.on}
+                className={`press flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left disabled:opacity-50 ${c.on ? "border-ink bg-ink text-paper" : "border-line-2 bg-card"}`}
+              >
+                <span>
+                  <span className="block text-[15px]">{c.label}</span>
+                  {c.hint && <span className={`block text-[12px] ${c.on ? "text-paper/70" : "text-ink-3"}`}>{c.hint}</span>}
+                </span>
+                {c.on && <Check size={16} />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
 

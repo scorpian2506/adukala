@@ -150,6 +150,7 @@ test("add to plan from a recipe page shows nutrition", async ({ page }) => {
 });
 
 test("the plan and family are shared with the household", async ({ browser }) => {
+  test.setTimeout(90_000);
   const uniq = `e2e_${Date.now().toString(36)}${Math.floor(Math.random() * 1e3)}`;
   const a = await (await browser.newContext()).newPage();
   await a.goto("/account");
@@ -179,6 +180,18 @@ test("the plan and family are shared with the household", async ({ browser }) =>
   await b.goto("/family");
   await expect(b.getByRole("button", { name: /Kutty/ })).toBeVisible();
   await expect(b.getByRole("button", { name: /Appa/ })).toBeVisible();
+  await expect(b.getByTestId("shared-note")).toContainText("Shared with Appa");
+
+  // Both phones open: what one adds shows up on the other without a reload.
+  await a.goto("/family");
+  await addMember(b, "child", "Chinnu", { age: "6", sex: "Girl" });
+  await expect(a.getByRole("button", { name: /Chinnu/ })).toBeVisible({ timeout: 30_000 });
+  await a.goto("/plan");
+  await a.getByRole("tab").nth(2).click();
+  await b.goto("/plan");
+  await b.getByRole("tab").nth(2).click();
+  await addDish(b, "Lunch", "Sambar");
+  await expect(a.getByRole("button", { name: /Sambar, edit portions/ })).toBeVisible({ timeout: 30_000 });
 });
 
 test("adults need height and weight; the calorie table sets the goal", async ({ page }) => {

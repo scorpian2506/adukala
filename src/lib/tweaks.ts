@@ -3,6 +3,7 @@
 // rice or dal it cooks, and keeps step items summing to the ingredient totals.
 
 import { foodFor, foodKey, gramsOf } from "./nutrition";
+import { applySwaps, canonicalSwaps, isSwapToken, type SwapId } from "./swaps";
 import type { Ingredient, Recipe, Step, Unit } from "./types";
 
 export const CUSTOMISATIONS = [
@@ -72,10 +73,14 @@ function grams(qty: number, unit: Unit, ing: Ingredient): number {
 }
 
 export interface TweakChange {
+  id?: string;
   name: string;
   unit: Unit;
   from: number;
   to: number;
+  /** An ingredient swap rather than a new amount: "Oil", "left out". */
+  swap?: string;
+  token?: SwapId;
 }
 
 export interface TweakResult {
@@ -85,13 +90,39 @@ export interface TweakResult {
   /** Why a tweak did nothing, or what the cook should know. */
   notes: Partial<Record<CustomisationId, string>>;
   changes: TweakChange[];
+  /** Ingredient swaps that applied, and what the cook should know about them. */
+  swaps: SwapId[];
+  swapNotes: string[];
+}
+
+/** Version id: "<base>--<tweaks joined by ->" then "~<swap>" for each swap. */
+export function versionSuffix(tweaks: readonly string[], swaps: readonly string[]) {
+  return `${tweaks.join("-")}${swaps.map((s) => `~${s}`).join("")}`;
+}
+
+/**
+ * Swaps first (so Low oil halves the oil that replaced the ghee), then the rule-based tweaks.
+ */
+export function tweakRecipe(r: Recipe, requested: readonly CustomisationId[], swaps: readonly string[] = []): TweakResult {
+  const sw = applySwaps(r, swaps);
+  const t = scaleTweaks(sw.recipe, requested);
+  if (!sw.applied.length) return { ...t, swaps: [], swapNotes: [] };
+  const unitOf = new Map(r.ingredients.map((i) => [i.id, i.unit]));
+  return {
+    recipe: { ...t.recipe, id: `${r.id}--${versionSuffix(t.applied, sw.applied)}` },
+    applied: t.applied,
+    notes: t.notes,
+    changes: [...sw.changes.map((c) => ({ id: c.id, name: c.name, unit: unitOf.get(c.id) ?? ("g" as Unit), from: 0, to: 0, swap: c.to, token: c.token })), ...t.changes],
+    swaps: sw.applied,
+    swapNotes: sw.notes,
+  };
 }
 
 /**
  * Apply rule-based tweaks. Batters and doughs (anything ground, breads, sweets) keep their
  * ratios; a dish that is only rice or flour isn't shrunk — the note says to eat less of it instead.
  */
-export function tweakRecipe(r: Recipe, requested: readonly CustomisationId[]): TweakResult {
+function scaleTweaks(r: Recipe, requested: readonly CustomisationId[]): Omit<TweakResult, "swaps" | "swapNotes"> {
   const ids = canonicalTweaks(requested);
   const notes: TweakResult["notes"] = {};
   if (!ids.length) return { recipe: r, applied: [], notes, changes: [] };
@@ -240,7 +271,7 @@ export function tweakRecipe(r: Recipe, requested: readonly CustomisationId[]): T
       // Totals are the sum of what the steps add, so the two always agree.
       const qty = origCounted.has(i.id) ? i.qty + ((counted.get(i.id) ?? 0) - origCounted.get(i.id)!) : scaleItem(i.qty, i.unit, i.id, factor.get(i.id) ?? 1);
       const to = Math.max(0, +qty.toFixed(4));
-      if (Math.abs(to - i.qty) > 1e-6) changes.push({ name: i.name, unit: i.unit, from: i.qty, to });
+      if (Math.abs(to - i.qty) > 1e-6) changes.push({ id: i.id, name: i.name, unit: i.unit, from: i.qty, to });
       return to === i.qty ? i : { ...i, qty: to, approx: undefined };
     })
     .filter((i) => i.qty > 0);
@@ -270,13 +301,19 @@ export function applyOfflineTweaks(r: Recipe, ids: readonly CustomisationId[]): 
   return tweakRecipe(r, ids).recipe;
 }
 
-/** "sambar--low_oil-high_protein" → base id + tweaks, if it is a rule-made version. */
-export function parseVariantId(id: string): { base: string; tweaks: CustomisationId[] } | null {
+/**
+ * "sambar--low_oil-high_protein" or "aloo-matar--low_oil~ggp~oil_ghee" → base id, tweaks and swaps,
+ * if it is a rule-made version.
+ */
+export function parseVariantId(id: string): { base: string; tweaks: CustomisationId[]; swaps: SwapId[] } | null {
   const at = id.lastIndexOf("--");
   if (at <= 0) return null;
-  const parts = id.slice(at + 2).split("-");
-  if (!parts.length || !parts.every((p) => OFFLINE_CUSTOMISATIONS.includes(p as CustomisationId))) return null;
-  return { base: id.slice(0, at), tweaks: parts as CustomisationId[] };
+  const [head, ...swaps] = id.slice(at + 2).split("~");
+  const tweaks = head ? head.split("-") : [];
+  if (!tweaks.length && !swaps.length) return null;
+  if (!tweaks.every((p) => OFFLINE_CUSTOMISATIONS.includes(p as CustomisationId))) return null;
+  if (!swaps.every(isSwapToken)) return null;
+  return { base: id.slice(0, at), tweaks: tweaks as CustomisationId[], swaps };
 }
 
 /** Find a recipe by id, re-deriving rule-made versions from their base so they never need saving. */
@@ -287,24 +324,24 @@ export function resolveRecipe(id: string, lookup: (id: string) => Recipe | undef
   if (!v) return undefined;
   const base = resolveRecipe(v.base, lookup);
   if (!base) return undefined;
-  const out = versionOf(base, v.tweaks);
+  const out = versionOf(base, v.tweaks, v.swaps);
   return out.id === id ? out : { ...out, id };
 }
 
 const derived = new WeakMap<Recipe, Map<string, Recipe>>();
 
-/** tweakRecipe(r, ids).recipe, cached per recipe object so lists and React memos stay cheap. */
-export function versionOf(r: Recipe, ids: readonly CustomisationId[]): Recipe {
-  const key = canonicalTweaks(ids).join("-");
+/** tweakRecipe(r, ids, swaps).recipe, cached per recipe object so lists and React memos stay cheap. */
+export function versionOf(r: Recipe, ids: readonly CustomisationId[], swaps: readonly string[] = []): Recipe {
+  const key = versionSuffix(canonicalTweaks(ids), canonicalSwaps(swaps));
   if (!key) return r;
   const memo = derived.get(r) ?? new Map<string, Recipe>();
   derived.set(r, memo);
   let out = memo.get(key);
-  if (!out) memo.set(key, (out = tweakRecipe(r, ids).recipe));
+  if (!out) memo.set(key, (out = tweakRecipe(r, ids, swaps).recipe));
   return out;
 }
 
 /** Id of a rule-made version (the base id when nothing would change). */
-export function variantId(r: Recipe, ids: readonly CustomisationId[]): string {
-  return versionOf(r, ids).id;
+export function variantId(r: Recipe, ids: readonly CustomisationId[], swaps: readonly string[] = []): string {
+  return versionOf(r, ids, swaps).id;
 }

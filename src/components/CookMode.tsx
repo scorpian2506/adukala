@@ -699,7 +699,7 @@ function Done({ recipe }: { recipe: Recipe }) {
 
 function IngredientSheet({ recipe, factor, servings, used, onClose }: { recipe: Recipe; factor: number; servings: number; used: Set<string>; onClose: () => void }) {
   return (
-    <div className="absolute inset-0 z-50 flex flex-col justify-end bg-ink/40 animate-fade" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex flex-col justify-end lg:absolute bg-ink/40 animate-fade" onClick={onClose}>
       <div className="safe-b max-h-[82%] overflow-y-auto rounded-t-[30px] bg-paper px-5 pt-3 animate-rise" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto h-1 w-10 rounded-full bg-line-2" />
         <div className="mt-4 flex items-baseline justify-between">
