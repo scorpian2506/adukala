@@ -488,7 +488,7 @@ function PortionSheet({
           </button>
           <button
             onClick={() => {
-              saveProgress({ recipeId: version.id, servings: total > 0 ? total : 1, index: 0 });
+              saveProgress({ recipeId: version.id, servings: Math.max(1, total), index: 0 });
               router.push(`/cook/${version.id}`);
             }}
             className="press rounded-2xl border border-line-2 bg-card py-3.5 text-[14px] font-medium"

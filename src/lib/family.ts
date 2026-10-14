@@ -199,9 +199,10 @@ export function checkDay(m: Member, eaten: { kcal: number; protein: number; carb
   const complete = planned >= CHECK_FROM;
   const protein: Check = !complete ? "ok" : eaten.protein < t.protein * 0.9 ? "low" : "ok";
   const carbs: Check = !complete ? "ok" : carbPct < CARB_PCT[0] ? "low" : carbPct > CARB_PCT[1] ? "high" : "ok";
-  const fat: Check = !complete ? "ok" : fatShare < f[0] ? "low" : fatShare > f[1] ? "high" : "ok";
-  const hints: string[] = [];
   const child = isChild(m);
+  // Low fat only matters for children (adults may be cutting oil on purpose).
+  const fat: Check = !complete ? "ok" : fatShare < f[0] && child ? "low" : fatShare > f[1] ? "high" : "ok";
+  const hints: string[] = [];
   if (protein === "low") {
     const extra = m.diet === "veg" ? "" : m.diet === "egg" ? ", an egg" : ", an egg, chicken or fish";
     hints.push(`Protein is short by ${Math.round(t.protein - eaten.protein)} g: add dal, paneer, curd or sprouts${extra}${child ? "" : ", or tick High protein"}.`);

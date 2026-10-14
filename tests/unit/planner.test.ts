@@ -123,6 +123,7 @@ describe("targets", () => {
     const balanced = checkDay(kid, { kcal: 1350, protein: 30, carbs: 190, fat: 45 }, t);
     expect([balanced.protein, balanced.carbs, balanced.fat, balanced.hints]).toEqual(["ok", "ok", "ok", []]);
     const me = adult({ diet: "nonveg" });
+    expect(checkDay(me, { kcal: 2300, protein: 100, carbs: 400, fat: 30 }).fat).toBe("ok"); // 12% fat: fine for an adult cutting oil
     expect(checkDay(me, { kcal: 2300, protein: 40, carbs: 300, fat: 80 }).hints[0]).toMatch(/an egg, chicken or fish, or tick High protein/);
   });
   it("falls back to the adult reference without height/weight", () => {
