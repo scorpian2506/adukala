@@ -17,7 +17,7 @@ export interface Member {
   heightCm?: number;
   weightKg?: number;
   activity: Activity;
-  goal: Goal; // children are always "maintain" (growing)
+  goal: Goal; // children: maintain (growing), lose = keep weight steady, gain = catch up
   /** Weekly change for lose/gain/muscle, in kg (0.25, 0.5 or 1). */
   rateKg?: number;
   /** Recipe tweaks applied by default when this person opens a recipe or plans a dish. */
@@ -54,12 +54,49 @@ const CHILD_KCAL: { maxAge: number; male: number; female: number }[] = [
   { maxAge: 17, male: 3320, female: 2500 },
 ];
 
+// ICMR-NIN 2020 protein RDA for children, g/day.
+const CHILD_PROTEIN: { maxAge: number; male: number; female: number }[] = [
+  { maxAge: 0.99, male: 10.5, female: 10.5 },
+  { maxAge: 3, male: 12.5, female: 12.5 },
+  { maxAge: 6, male: 16, female: 16 },
+  { maxAge: 9, male: 23, female: 23 },
+  { maxAge: 12, male: 32, female: 33 },
+  { maxAge: 15, male: 45, female: 43 },
+  { maxAge: 17, male: 55, female: 46 },
+];
+
+/**
+ * Goals for children never mean dieting: "keep weight steady" trims about 10% so they grow
+ * into their weight, "catch up" adds about 10%. Protein is never cut.
+ */
+export const CHILD_GOALS: { id: Goal; label: string; hint: string; factor: number }[] = [
+  { id: "maintain", label: "Growing normally", hint: "Full ICMR-NIN amount for their age", factor: 1 },
+  { id: "lose", label: "Keep weight steady", hint: "About 10% less, so they grow into their weight", factor: 0.9 },
+  { id: "gain", label: "Catch up", hint: "About 10% more, for an underweight child", factor: 1.1 },
+];
+
+/** Children under 2 always get the full amount. */
+export function childGoalsFor(age: number) {
+  return age < 2 ? CHILD_GOALS.slice(0, 1) : CHILD_GOALS;
+}
+
+// Healthy shares of the day's calories (IOM acceptable ranges, used by ICMR-NIN too).
+export const CARB_PCT: [number, number] = [45, 65];
+function fatPct(m: Pick<Member, "kind" | "age">): [number, number] {
+  if (m.age < 4) return [30, 40];
+  if (m.kind === "child" || m.age < 18) return [25, 35];
+  return [20, 35];
+}
+
 // ICMR-NIN 2020 adult reference values when height/weight aren't given (sedentary / moderate).
 const ADULT_REF = { male: { sedentary: 2110, moderate: 2710 }, female: { sedentary: 1660, moderate: 2130 } };
 
 export interface Target {
   kcal: number;
-  protein: number; // g/day
+  protein: number; // g/day, a minimum
+  /** Healthy range in g/day (from the share of calories). */
+  carbs: [number, number];
+  fat: [number, number];
   basis: string; // how it was worked out, in plain words
   /** Calories to keep the current weight (adults). */
   maintain?: number;
@@ -89,12 +126,29 @@ export function bmr(m: Pick<Member, "sex" | "age" | "heightCm" | "weightKg">): n
   return 10 * m.weightKg + 6.25 * m.heightCm - 5 * m.age + (m.sex === "male" ? 5 : -161);
 }
 
+function withMacros(m: Pick<Member, "kind" | "age">, t: Omit<Target, "carbs" | "fat">): Target {
+  const f = fatPct(m);
+  return { ...t, carbs: [round((t.kcal * CARB_PCT[0]) / 400, 5), round((t.kcal * CARB_PCT[1]) / 400, 5)], fat: [round((t.kcal * f[0]) / 900, 5), round((t.kcal * f[1]) / 900, 5)] };
+}
+
+export function isChild(m: Pick<Member, "kind" | "age">) {
+  return m.kind === "child" || m.age < 18;
+}
+
 export function dailyTarget(m: Member): Target {
-  if (m.kind === "child" || m.age < 18) {
+  if (isChild(m)) {
     const row = CHILD_KCAL.find((r) => m.age <= r.maxAge) ?? CHILD_KCAL[CHILD_KCAL.length - 1];
-    const kcal = row[m.sex];
-    const protein = round((m.weightKg ?? Math.max(10, m.age * 3 + 8)) * (m.age < 4 ? 1.2 : 1.0), 1);
-    return { kcal, protein, basis: `ICMR-NIN guide for a ${m.age}-year-old ${m.sex === "male" ? "boy" : "girl"}` };
+    const goal = childGoalsFor(m.age).find((g) => g.id === m.goal) ?? CHILD_GOALS[0];
+    const full = row[m.sex];
+    const kcal = round(full * goal.factor, 10);
+    const pRow = CHILD_PROTEIN.find((r) => m.age <= r.maxAge) ?? CHILD_PROTEIN[CHILD_PROTEIN.length - 1];
+    const who = `${m.age}-year-old ${m.sex === "male" ? "boy" : "girl"}`;
+    return withMacros(m, {
+      kcal,
+      protein: pRow[m.sex],
+      basis: goal.factor === 1 ? `ICMR-NIN guide for a ${who}` : `ICMR-NIN guide for a ${who}, ${goal.label.toLowerCase()} (${goal.factor < 1 ? "−" : "+"}10%)`,
+      maintain: full,
+    });
   }
   const factor = ACTIVITY.find((a) => a.id === m.activity)?.factor ?? 1.375;
   const rest = bmr(m);
@@ -115,7 +169,48 @@ export function dailyTarget(m: Member): Target {
   const kcal = round(Math.max(floor, wanted), 10);
   const perKg = { lose: 1.2, maintain: 0.83, gain: 1.0, muscle: 1.6 }[m.goal];
   const protein = round((m.weightKg ?? (m.sex === "male" ? 65 : 55)) * perKg, 1);
-  return { kcal, protein, basis, maintain: round(tdee, 10), floored: wanted < floor };
+  return withMacros(m, { kcal, protein, basis, maintain: round(tdee, 10), floored: wanted < floor });
+}
+
+export type Check = "ok" | "low" | "high";
+
+export interface DayCheck {
+  /** Planned calories as a share of the target; checks only mean something once most of the day is planned. */
+  planned: number;
+  complete: boolean;
+  protein: Check;
+  carbs: Check;
+  fat: Check;
+  /** Share of the day's calories from carbs and fat, in %. */
+  carbPct: number;
+  fatPct: number;
+  hints: string[];
+}
+
+/** Most of the day must be planned before protein, carbs and fat are judged. */
+export const CHECK_FROM = 0.7;
+
+/** Are this person's protein, carbs and fat in a healthy range for what's planned? Rules only. */
+export function checkDay(m: Member, eaten: { kcal: number; protein: number; carbs: number; fat: number }, t: Target = dailyTarget(m)): DayCheck {
+  const planned = t.kcal ? eaten.kcal / t.kcal : 0;
+  const carbPct = eaten.kcal ? Math.round((eaten.carbs * 400) / eaten.kcal) : 0;
+  const fatShare = eaten.kcal ? Math.round((eaten.fat * 900) / eaten.kcal) : 0;
+  const f = fatPct(m);
+  const complete = planned >= CHECK_FROM;
+  const protein: Check = !complete ? "ok" : eaten.protein < t.protein * 0.9 ? "low" : "ok";
+  const carbs: Check = !complete ? "ok" : carbPct < CARB_PCT[0] ? "low" : carbPct > CARB_PCT[1] ? "high" : "ok";
+  const fat: Check = !complete ? "ok" : fatShare < f[0] ? "low" : fatShare > f[1] ? "high" : "ok";
+  const hints: string[] = [];
+  const child = isChild(m);
+  if (protein === "low") {
+    const extra = m.diet === "veg" ? "" : m.diet === "egg" ? ", an egg" : ", an egg, chicken or fish";
+    hints.push(`Protein is short by ${Math.round(t.protein - eaten.protein)} g: add dal, paneer, curd or sprouts${extra}${child ? "" : ", or tick High protein"}.`);
+  }
+  if (carbs === "high") hints.push(`Carbs are ${carbPct}% of calories: swap some rice or roti for dal and vegetables${child ? "" : ", or tick Low carb"}.`);
+  if (carbs === "low") hints.push(child ? `Carbs are only ${carbPct}% of calories: growing kids need rice, roti, idli or fruit for energy.` : `Carbs are only ${carbPct}% of calories: add some rice, roti or fruit.`);
+  if (fat === "high") hints.push(`Fat is ${fatShare}% of calories: tick Low oil or choose fewer fried dishes.`);
+  if (fat === "low" && child) hints.push(`Fat is only ${fatShare}% of calories: children need some ghee, oil, nuts or full-fat milk.`);
+  return { planned, complete, protein, carbs, fat, carbPct, fatPct: fatShare, hints };
 }
 
 export interface CalorieRow {
@@ -128,8 +223,15 @@ export interface CalorieRow {
   floored: boolean;
 }
 
-/** Calories per day for each goal and pace — the calculator table. Adults only. */
+/** Calories per day for each goal and pace — the calculator table. Children get the gentle child goals. */
 export function calorieTable(m: Member): CalorieRow[] {
+  if (isChild(m)) {
+    const full = dailyTarget({ ...m, goal: "maintain" }).kcal;
+    return childGoalsFor(m.age).map((g) => {
+      const kcal = dailyTarget({ ...m, goal: g.id }).kcal;
+      return { goal: g.id, rateKg: 0, label: g.label, kcal, pct: Math.round((kcal / full) * 100), floored: false };
+    });
+  }
   const maintain = dailyTarget({ ...m, goal: "maintain" }).maintain ?? 0;
   const row = (goal: Goal, rateKg: number, label: string): CalorieRow => {
     const t = dailyTarget({ ...m, goal, rateKg });
@@ -146,11 +248,15 @@ export function calorieTable(m: Member): CalorieRow[] {
   ];
 }
 
-/** Body mass index, with the Asian-Indian cut-offs (ICMR / WHO Asia-Pacific). */
-export function bmi(m: Pick<Member, "heightCm" | "weightKg">): { value: number; label: string; healthy: [number, number] } | null {
+/**
+ * Body mass index, with the Asian-Indian adult cut-offs (ICMR / WHO Asia-Pacific).
+ * Children's BMI is read on age-and-sex growth charts, so they get the number only (label null).
+ */
+export function bmi(m: Pick<Member, "heightCm" | "weightKg"> & Partial<Pick<Member, "kind" | "age">>): { value: number; label: string | null; healthy: [number, number] | null } | null {
   if (!m.heightCm || !m.weightKg) return null;
   const h = m.heightCm / 100;
   const value = Math.round((m.weightKg / (h * h)) * 10) / 10;
+  if (m.kind === "child" || (m.age != null && m.age < 18)) return { value, label: null, healthy: null };
   const label = value < 18.5 ? "Underweight" : value < 23 ? "Healthy" : value < 25 ? "Overweight" : "Obese";
   return { value, label, healthy: [Math.round(18.5 * h * h), Math.round(22.9 * h * h)] };
 }

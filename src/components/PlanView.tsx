@@ -7,7 +7,7 @@ import { CUSTOMISATIONS, OFFLINE_CUSTOMISATIONS, findRecipe, parseVariantId, ver
 import { searchRecipes } from "@/lib/search";
 import { markedIds, saveProgress, useMarks, useSavedRecipes } from "@/lib/store";
 import { addDish, copyWeek, fitDays, removeDish, updateDish, useFamily, useMe, usePlanWeek } from "@/lib/household";
-import { dailyTarget, eats, usualTweaks, type Member } from "@/lib/family";
+import { checkDay, dailyTarget, eats, usualTweaks, type Check as Status, type Member } from "@/lib/family";
 import { recipeNutrition } from "@/lib/nutrition";
 import { DAYS, DAY_LABEL, MEALS, MEAL_LABEL, addWeeks, dayDate, personTotals, potServings, todayDay, weekLabel, weekStart, type Day, type Meal, type Nutrients, type PlannedDish, type Slot } from "@/lib/planner";
 import { useHydrated } from "@/lib/useRecipe";
@@ -113,9 +113,16 @@ export function PlanView() {
             <div key={meal} className="rounded-[22px] border border-line-2 bg-card p-3.5">
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-[22px] leading-none">{MEAL_LABEL[meal]}</h2>
+                <span className="flex items-center gap-1.5">
+                {slot?.dishes.length ? (
+                  <Link href={`/plan/shopping?week=${week}&day=${day}&meal=${meal}`} className="press rounded-full border border-line-2 px-3 py-1.5 text-[13px]" aria-label={`Shopping for ${DAY_LABEL[day]} ${MEAL_LABEL[meal]}`}>
+                    Shop
+                  </Link>
+                ) : null}
                 <button onClick={() => setPicker(meal)} className="press inline-flex items-center gap-1 rounded-full bg-paper-2 px-3 py-1.5 text-[13px] font-medium" aria-label={`Add dish to ${MEAL_LABEL[meal]}`}>
                   <Plus size={14} /> Add
                 </button>
+                </span>
               </div>
               {slot?.dishes.length ? (
                 <ul className="mt-3 space-y-2">
@@ -178,14 +185,17 @@ export function PlanView() {
 
       <div className="mx-4 mt-4 grid grid-cols-2 gap-2">
         <Link href={`/plan/shopping?week=${week}`} className="press flex items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-[14px] font-medium text-paper">
-          Shopping list
+          Shop for the week
+        </Link>
+        <Link href={`/plan/shopping?week=${week}&day=${day}`} className="press flex items-center justify-center gap-2 rounded-2xl border border-line-2 bg-card py-3.5 text-[14px] font-medium">
+          Shop for {DAY_LABEL[day]}
         </Link>
         <button
           onClick={() => {
             if (plannedCount && !confirm("Copy last week's dishes into the empty slots of this week?")) return;
             copyWeek(addWeeks(week, -1), week);
           }}
-          className="press rounded-2xl border border-line-2 bg-card py-3.5 text-[14px] font-medium"
+          className="press col-span-2 rounded-2xl border border-line-2 bg-card py-3.5 text-[14px] font-medium"
         >
           Copy last week
         </button>
@@ -240,7 +250,12 @@ function WeekSummary({ members, slots, per }: { members: Member[]; slots: Slot[]
                 <span className="truncate text-[14px] font-medium">{m.name}</span>
               </div>
               <p className="font-display mt-2 text-[24px] leading-none tnum">{Math.round(week.kcal).toLocaleString()}</p>
-              <p className="text-[11px] text-ink-3 tnum">of {(t.kcal * 7).toLocaleString()} kcal · {Math.round(week.protein)}/{t.protein * 7} g protein</p>
+              <p className="text-[11px] text-ink-3 tnum">of {(t.kcal * 7).toLocaleString()} kcal · {Math.round(week.protein)}/{Math.round(t.protein * 7)} g protein</p>
+              {week.kcal > 0 && (
+                <p className="text-[11px] text-ink-3 tnum">
+                  {Math.round((week.carbs * 400) / week.kcal)}% carbs · {Math.round((week.fat * 900) / week.kcal)}% fat
+                </p>
+              )}
               <div className="mt-2">
                 <Bar value={week.kcal} target={t.kcal * 7} />
               </div>
@@ -252,14 +267,26 @@ function WeekSummary({ members, slots, per }: { members: Member[]; slots: Slot[]
   );
 }
 
+const STATUS_TONE: Record<Status, string> = { ok: "bg-leaf-soft text-leaf", low: "bg-turmeric-soft text-ink", high: "bg-chilli/10 text-chilli" };
+
+function Chip({ label, value, status, show }: { label: string; value: string; status: Status; show: boolean }) {
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[11px] tnum ${show ? STATUS_TONE[status] : "bg-line text-ink-3"}`}>
+      {label} {value}
+      {show && status !== "ok" ? ` · ${status}` : ""}
+    </span>
+  );
+}
+
 function DayTotals({ members, slots, per, day }: { members: Member[]; slots: Slot[]; per: (id: string) => Nutrients | null; day: Day }) {
   return (
     <section className="mx-4 mt-4 rounded-[22px] bg-paper-2 p-4">
       <p className="eyebrow text-ink-3">{DAY_LABEL[day]} · per person</p>
-      <ul className="mt-3 space-y-3">
+      <ul className="mt-3 space-y-3.5">
         {members.map((m) => {
           const t = dailyTarget(m);
           const n = personTotals(slots, m.id, per);
+          const c = checkDay(m, n, t);
           return (
             <li key={m.id} data-testid={`day-${m.name}`}>
               <div className="flex items-center justify-between text-[13px]">
@@ -267,12 +294,25 @@ function DayTotals({ members, slots, per, day }: { members: Member[]; slots: Slo
                   <Avatar m={m} size={20} /> {m.name}
                 </span>
                 <span className="tnum text-ink-2">
-                  <strong className="text-ink">{Math.round(n.kcal)}</strong> / {t.kcal} kcal · {Math.round(n.protein)} g protein
+                  <strong className="text-ink">{Math.round(n.kcal)}</strong> / {t.kcal} kcal
                 </span>
               </div>
               <div className="mt-1.5">
                 <Bar value={n.kcal} target={t.kcal} />
               </div>
+              {n.kcal > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1" data-testid={`check-${m.name}`}>
+                  <Chip label="Protein" value={`${Math.round(n.protein)}/${t.protein} g`} status={c.protein} show={c.complete} />
+                  <Chip label="Carbs" value={`${Math.round(n.carbs)} g · ${c.carbPct}%`} status={c.carbs} show={c.complete} />
+                  <Chip label="Fat" value={`${Math.round(n.fat)} g · ${c.fatPct}%`} status={c.fat} show={c.complete} />
+                </div>
+              )}
+              {n.kcal > 0 && !c.complete && <p className="mt-1 text-[11px] text-ink-3">Plan more of the day to check protein, carbs and fat.</p>}
+              {c.hints.map((h) => (
+                <p key={h} className="mt-1 text-[12px] leading-snug text-ink-2">
+                  {h}
+                </p>
+              ))}
             </li>
           );
         })}
@@ -448,7 +488,7 @@ function PortionSheet({
           </button>
           <button
             onClick={() => {
-              saveProgress({ recipeId: version.id, servings: Math.max(1, Math.ceil(total)), index: 0 });
+              saveProgress({ recipeId: version.id, servings: total > 0 ? total : 1, index: 0 });
               router.push(`/cook/${version.id}`);
             }}
             className="press rounded-2xl border border-line-2 bg-card py-3.5 text-[14px] font-medium"

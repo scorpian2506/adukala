@@ -76,7 +76,7 @@ test("family, a week of meals, calories per person, shopping list", async ({ pag
   await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
 
   // shopping list from the plan
-  await page.getByRole("link", { name: "Shopping list" }).click();
+  await page.getByRole("link", { name: "Shop for the week" }).click();
   await expect(visible(page).heading("Shopping list")).toBeVisible();
   const toor = page.getByRole("checkbox", { name: /Toor dal/ });
   await expect(toor).toBeVisible();
@@ -85,6 +85,56 @@ test("family, a week of meals, calories per person, shopping list", async ({ pag
   await expect(toor).toHaveAttribute("aria-checked", "true");
   await page.reload();
   await expect(page.getByRole("checkbox", { name: /Toor dal/ })).toHaveAttribute("aria-checked", "true");
+
+  // Just Monday breakfast: only the idli's ingredients, nothing from lunch or Tuesday
+  await page.getByRole("tab", { name: "Mon" }).click();
+  await page.getByRole("tab", { name: "Breakfast" }).click();
+  await expect(page).toHaveURL(/day=mon&meal=breakfast/);
+  await expect(page.getByTestId("shop-dishes")).toContainText("Idli");
+  await expect(page.getByTestId("shop-dishes").getByRole("listitem")).toHaveCount(1);
+  await expect(page.getByRole("checkbox", { name: /Urad dal/ })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Toor dal/ })).toHaveCount(0);
+  await expect(page.getByRole("checkbox", { name: /wheat flour/i })).toHaveCount(0);
+  // Whole Monday adds lunch; ticks are kept per list
+  await page.getByRole("tab", { name: "Whole day" }).click();
+  await expect(page.getByRole("checkbox", { name: /Toor dal/ })).toHaveAttribute("aria-checked", "false");
+  await expect(page.getByTestId("shop-dishes").getByRole("listitem")).toHaveCount(3);
+  await expect(page.getByRole("checkbox", { name: /wheat flour/i })).toHaveCount(0); // chapati is Tuesday
+
+  // The plan links straight to one meal's list
+  await page.goto("/plan");
+  await page.getByRole("tab").nth(1).click();
+  await page.getByRole("link", { name: "Shopping for Tue Dinner" }).click();
+  await expect(page.getByTestId("shop-dishes").getByRole("listitem")).toHaveCount(1);
+  await expect(page.getByTestId("shop-dishes")).toContainText("Chapati");
+});
+
+test("a child can keep weight steady, and the plan checks their protein, carbs and fat", async ({ page }) => {
+  await page.goto("/family");
+  await addMember(page, "child", "Ammu", { age: "6", sex: "Girl", height: "115", weight: "24", goal: "Keep weight steady" });
+  const row = page.getByRole("button", { name: /Ammu/ });
+  await expect(row).toContainText("1220");
+  await expect(row).toContainText("Keep weight steady");
+  await row.click();
+  const d = page.getByRole("dialog");
+  await expect(d.getByRole("radio", { name: /^Keep weight steady/ })).toHaveAttribute("aria-checked", "true");
+  await expect(d.getByRole("radio", { name: /^Lose/ })).toHaveCount(0); // no adult kg-a-week goals
+  await expect(d).toContainText("16 g protein"); // ICMR-NIN, not cut
+  await expect(d.getByTestId("macro-target")).toContainText("Carbs");
+  await expect(d).toContainText("for children this is read on an age chart");
+  await expect(d).not.toContainText("Underweight");
+  await d.getByRole("radio", { name: /^Growing normally/ }).click();
+  await d.getByRole("button", { name: "Save" }).click();
+  await expect(row).toContainText("1360");
+
+  await page.goto("/plan");
+  await page.getByRole("tab").first().click();
+  await addDish(page, "Lunch", "Sambar");
+  await expect(page.getByTestId("day-Ammu")).toContainText("Plan more of the day");
+  for (const [meal, dish] of [["Breakfast", "Idli"], ["Lunch", "Plain White Rice"], ["Dinner", "Chapati"], ["Dinner", "Dal Tadka"]]) await addDish(page, meal, dish);
+  await page.getByRole("button", { name: "Fit Mon to goals" }).click();
+  await expect(page.getByTestId("check-Ammu")).toContainText(/Protein \d+\/16 g/);
+  await expect(page.getByTestId("day-Ammu")).not.toContainText("Plan more of the day");
 });
 
 test("add to plan from a recipe page shows nutrition", async ({ page }) => {
@@ -196,7 +246,7 @@ test("your usual tweaks are ticked on recipes and in the plan, and can be untick
   await sheet.getByRole("button", { name: "Save" }).click();
   await expect(row).toContainText("High protein");
   await expect(row).not.toContainText("Low oil");
-  await page.getByRole("link", { name: "Shopping list" }).click();
+  await page.getByRole("link", { name: "Shop for the week" }).click();
   // one serving of the high-protein sambar: 150 g dal for 4 → about 38 g (25 g in the original)
   const grams = Number((await page.getByRole("checkbox", { name: /Toor dal/ }).textContent())!.match(/(\d+)\s*g/)![1]);
   expect(grams).toBeGreaterThan(30);

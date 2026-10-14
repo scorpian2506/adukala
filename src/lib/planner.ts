@@ -139,3 +139,36 @@ export function potServings(portions: Record<string, number>): number {
   const total = Object.values(portions).reduce((a, b) => a + b, 0);
   return Math.ceil(total * 2) / 2;
 }
+
+/** What a shopping list covers: the whole week, one day, or one meal of one day. */
+export interface ShopScope {
+  day?: Day;
+  meal?: Meal;
+}
+
+export function shopScopeKey(week: string, scope: ShopScope): string {
+  return scope.day ? (scope.meal ? `${week}:${scope.day}:${scope.meal}` : `${week}:${scope.day}`) : week;
+}
+
+export function shopScopeLabel(scope: ShopScope): string {
+  return scope.day ? (scope.meal ? `${DAY_LABEL[scope.day]} ${MEAL_LABEL[scope.meal].toLowerCase()}` : DAY_LABEL[scope.day]) : "Whole week";
+}
+
+/**
+ * The dishes to shop for in a scope, as servings to cook: only planned dishes someone eats,
+ * each slot rounded the same way as its "cook N" (potServings), so the list matches the pot.
+ */
+export function shopDishes(plan: Record<string, Slot>, scope: ShopScope = {}): { recipeId: string; servings: number; meals: string[] }[] {
+  const out = new Map<string, { recipeId: string; servings: number; meals: string[] }>();
+  for (const d of scope.day ? [scope.day] : DAYS) for (const m of scope.meal ? [scope.meal] : MEALS) {
+    for (const dish of plan[`${d}:${m}`]?.dishes ?? []) {
+      const n = potServings(dish.portions);
+      if (!(n > 0)) continue;
+      const cur = out.get(dish.recipeId) ?? { recipeId: dish.recipeId, servings: 0, meals: [] };
+      cur.servings += n;
+      cur.meals.push(`${DAY_LABEL[d]} ${MEAL_LABEL[m].toLowerCase()}`);
+      out.set(dish.recipeId, cur);
+    }
+  }
+  return [...out.values()];
+}

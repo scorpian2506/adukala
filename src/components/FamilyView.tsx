@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ACTIVITY, GOALS, bmi, calorieTable, dailyTarget, needsBody, newMemberId, rateOf, usualTweaks, type Member } from "@/lib/family";
+import { ACTIVITY, CHILD_GOALS, GOALS, bmi, calorieTable, dailyTarget, needsBody, newMemberId, rateOf, usualTweaks, type Member } from "@/lib/family";
 import { CUSTOMISATIONS, OFFLINE_CUSTOMISATIONS, type CustomisationId } from "@/lib/tweaks";
 import { deleteMember, nextColor, saveMember, useFamily } from "@/lib/household";
 import { useHydrated } from "@/lib/useRecipe";
@@ -53,7 +53,7 @@ export function FamilyView() {
                       {m.name} {m.username && <span className="text-[12px] font-normal text-ink-3">@{m.username}</span>}
                     </span>
                     <span className="block text-[12px] text-ink-3">
-                      {m.kind === "child" ? `Child · ${m.age} yrs` : `${goalLabel(m)} · ${m.age} yrs`} · {m.diet === "veg" ? "Veg" : m.diet === "egg" ? "Eggetarian" : "Non-veg"}
+                      {m.kind === "child" ? `Child · ${m.age} yrs${m.goal !== "maintain" ? ` · ${goalLabel(m)}` : ""}` : `${goalLabel(m)} · ${m.age} yrs`} · {m.diet === "veg" ? "Veg" : m.diet === "egg" ? "Eggetarian" : "Non-veg"}
                     </span>
                     {needsBody(m) && <span className="mt-1 inline-block rounded-full bg-turmeric-soft px-2 py-0.5 text-[11px] font-medium text-ink">Add height &amp; weight</span>}
                   </span>
@@ -89,6 +89,7 @@ export function FamilyView() {
 }
 
 function goalLabel(m: Member) {
+  if (m.kind === "child") return CHILD_GOALS.find((g) => g.id === m.goal)?.label ?? "";
   const r = rateOf(m);
   const pace = r === 0.25 ? "¼" : r === 0.5 ? "½" : String(r);
   if (m.goal === "lose") return `Lose ${pace} kg/wk`;
@@ -123,7 +124,7 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
   const child = m.kind === "child";
   const missingBody = !child && (!m.heightCm || !m.weightKg);
   const body = bmi(m);
-  const table = !child && !missingBody ? calorieTable(m) : [];
+  const table = child || !missingBody ? calorieTable(m) : [];
   const tweaks = usualTweaks(m);
   const toggleTweak = (id: CustomisationId) => set("tweaks", tweaks.includes(id) ? tweaks.filter((x) => x !== id) : [...tweaks, id]);
 
@@ -134,7 +135,7 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
         onSubmit={(e) => {
           e.preventDefault();
           if (!m.name.trim() || missingBody) return;
-          saveMember({ ...m, name: m.name.trim(), goal: child ? "maintain" : m.goal });
+          saveMember({ ...m, name: m.name.trim(), goal: child && !table.some((r) => r.goal === m.goal) ? "maintain" : m.goal, rateKg: child ? undefined : m.rateKg });
           onClose();
         }}
         className="safe-b max-h-[92%] overflow-y-auto rounded-t-[30px] bg-paper px-5 pt-3 animate-rise"
@@ -164,7 +165,14 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
         {missingBody && <p className="mt-2 text-[12px] text-chilli">Height and weight are needed to work out calories for an adult.</p>}
         {body && (
           <p className="mt-2 text-[12px] text-ink-3 tnum">
-            BMI {body.value} · <span className={body.label === "Healthy" ? "text-leaf" : "text-chilli"}>{body.label}</span> · healthy weight for this height {body.healthy[0]}–{body.healthy[1]} kg
+            BMI {body.value} ·{" "}
+            {body.label && body.healthy ? (
+              <>
+                <span className={body.label === "Healthy" ? "text-leaf" : "text-chilli"}>{body.label}</span> · healthy weight for this height {body.healthy[0]}–{body.healthy[1]} kg
+              </>
+            ) : (
+              "for children this is read on an age chart; ask your paediatrician whether it’s in range"
+            )}
           </p>
         )}
 
@@ -173,6 +181,36 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
 
         <p className="mt-4 text-[13px] font-medium text-ink-2">Eats</p>
         <Seg label="Diet" value={m.diet} onChange={(v) => set("diet", v)} options={[{ id: "veg", label: "Veg" }, { id: "egg", label: "Veg + egg" }, { id: "nonveg", label: "Non-veg" }]} />
+
+        {child && table.length > 1 && (
+          <>
+            <p className="mt-4 text-[13px] font-medium text-ink-2">Goal · calories a day</p>
+            <div role="radiogroup" aria-label="Goal" className="mt-1 overflow-hidden rounded-2xl border border-line-2 bg-card">
+              {table.map((row) => {
+                const on = m.goal === row.goal;
+                return (
+                  <button
+                    key={row.label}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setM((x) => ({ ...x, goal: row.goal, rateKg: undefined }))}
+                    className={`press flex w-full items-center justify-between gap-3 border-b border-line px-3.5 py-2.5 text-left last:border-b-0 ${on ? "bg-ink text-paper" : ""}`}
+                  >
+                    <span>
+                      <span className="block text-[14px]">{row.label}</span>
+                      <span className={`block text-[11px] ${on ? "text-paper/60" : "text-ink-3"}`}>{CHILD_GOALS.find((g) => g.id === row.goal)?.hint}</span>
+                    </span>
+                    <span className="shrink-0 font-mono text-[13px] tnum">
+                      {row.kcal.toLocaleString("en-IN")} kcal <span className={on ? "text-paper/60" : "text-ink-3"}>{row.pct}%</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-[12px] text-ink-3">Children shouldn&rsquo;t diet. &ldquo;Keep weight steady&rdquo; trims a little so they grow into their weight; protein is never cut. Check with your paediatrician first.</p>
+          </>
+        )}
 
         {!child && (
           <>
@@ -230,8 +268,11 @@ function MemberSheet({ member, isNew, onClose }: { member: Member; isNew: boolea
           <p className="font-display mt-1 text-[34px] leading-none tnum">
             {t.kcal} <span className="text-[16px] opacity-70">kcal</span> · {t.protein} <span className="text-[16px] opacity-70">g protein</span>
           </p>
+          <p className="mt-1 text-[12px] text-paper/80 tnum" data-testid="macro-target">
+            Carbs {t.carbs[0]}–{t.carbs[1]} g · Fat {t.fat[0]}–{t.fat[1]} g{child ? " · protein is a minimum for growth" : ""}
+          </p>
           <p className="mt-1 text-[12px] text-paper/60">
-            {t.maintain && t.maintain !== t.kcal ? `${t.maintain.toLocaleString("en-IN")} kcal keeps your weight · ` : ""}
+            {t.maintain && t.maintain !== t.kcal ? `${t.maintain.toLocaleString("en-IN")} kcal ${child ? "is the full amount for their age" : "keeps your weight"} · ` : ""}
             {t.basis}
           </p>
         </div>
