@@ -14,7 +14,10 @@ export type Equipment =
   | "knife"
   | "bowl"
   | "sieve"
-  | "ladle";
+  | "ladle"
+  | "oven"
+  | "baking_tin"
+  | "whisk";
 
 export type StepKind =
   | "measure" // portion out ingredients before cooking
@@ -72,6 +75,8 @@ export interface Step {
    */
   background?: boolean;
   flame?: Flame; // flame level during this step
+  /** Oven temperature for a step in the oven, in °C for a conventional oven (fan ovens run 20 °C lower). */
+  ovenC?: number;
   whistles?: number; // pressure steps
   equipment?: Equipment;
   cue?: string; // what "done" looks/smells/sounds like
@@ -82,7 +87,7 @@ export interface Recipe {
   id: string;
   name: string;
   native?: string; // name in the regional language
-  region: "north" | "south" | "indo_chinese";
+  region: "north" | "south" | "indo_chinese" | "baking";
   /** Finer origin, for filters and search. */
   cuisine?: "tamil" | "kerala" | "karnataka" | "andhra" | "hyderabadi" | "punjabi" | "north" | "indo_chinese";
   course: "main" | "dal" | "rice" | "breakfast" | "side" | "drink" | "snack" | "dessert" | "bread" | "noodles" | "soup";

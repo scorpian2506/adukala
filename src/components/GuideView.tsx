@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { useKitchen } from "@/lib/household";
+import { flameLabel } from "@/lib/kitchen-tools";
 import { StepArt } from "./StepArt";
 import { TopBar } from "./Nav";
 
@@ -23,6 +26,8 @@ const SALT = [
 ];
 
 export function GuideView() {
+  const tools = useKitchen();
+  const induction = tools.hob === "induction";
   return (
     <main className="app-min-h pb-16">
       <header className="px-4 pb-2">
@@ -73,7 +78,13 @@ export function GuideView() {
       </section>
 
       <section className="mt-10 px-5">
-        <h2 className="font-display text-[28px]">Flame levels</h2>
+        <h2 className="font-display text-[28px]">{induction ? "Heat levels" : "Flame levels"}</h2>
+        <p className="mt-1 text-[13px] text-ink-3">
+          {induction ? `On your induction hob (1–${tools.hobMax}). ` : "Cooking on induction? "}
+          <Link href="/settings" className="underline underline-offset-2">
+            {induction ? "Change" : "Set it in Settings"}
+          </Link>
+        </p>
         <div className="mt-3 space-y-2">
           {FLAMES.map((f) => (
             <div key={f.name} className="flex items-center gap-3 rounded-[22px] border border-line-2 bg-card p-3 pr-4">
@@ -81,7 +92,10 @@ export function GuideView() {
                 <StepArt kind="flame" flame={f.name.toLowerCase() as "low" | "medium" | "high"} className="h-full w-full" />
               </div>
               <div>
-                <p className="font-display text-[22px] leading-none">{f.name}</p>
+                <p className="font-display text-[22px] leading-none">
+                  {f.name}
+                  {induction && <span className="ml-2 font-sans text-[14px] font-medium text-chilli">{flameLabel(f.name.toLowerCase() as "low" | "medium" | "high", tools)}</span>}
+                </p>
                 <p className="mt-1 text-[13px] leading-snug text-ink-2">{f.body}</p>
               </div>
             </div>

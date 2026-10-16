@@ -12,7 +12,7 @@ Measured Indian cooking, one step at a time. Adukala is a mobile-first web app t
 
 The core app needs no AI and no API key.
 
-1. **Library.** 216 validated recipes: Tamil and Kerala home cooking, North Indian curries and breads, biryanis, Indo-Chinese and kids' meals. Add a file to `src/data/recipes/` and run `npm run gen:recipes`.
+1. **Library.** 228 validated recipes: Tamil and Kerala home cooking, North Indian curries and breads, biryanis, Indo-Chinese, kids' meals and **kids' treats**: low-sugar cakes, muffins, cookies and ladoos (at most 8 g of added sugar each, sweetened mostly with banana, dates or a little jaggery, no maida). Add a file to `src/data/recipes/` and run `npm run gen:recipes`.
    - **Search** forgives spelling (biriyani/biryani, kulambu/kuzhambu, meen = fish) and filters by cuisine, kids, veg, sweets, under 30 minutes.
    - **Star** favourites and **pin** weekly dishes to the top of Home.
 2. **YouTube converter (free, rule-based).** Paste a recipe video link. Adukala finds the cook's own written recipe, then converts it into measured, timed steps with deterministic rules (`src/lib/convert.ts`). The recipe comes from either:
@@ -48,8 +48,17 @@ When a video has no written recipe, Adukala says so and offers videos from cooks
 - **One pot, different plates:** you can't cook for one person, so each dish is cooked once for the family. "Fit to goals" sizes each person's portions so their day adds up to their target (25% breakfast, 35% lunch, 10% snack, 30% dinner; quarter servings). Each dish shows how many servings to cook and how much to serve each person. The tweaks apply to the whole dish.
 - **Plan:** Mon–Sun, four meals a day, built from the recipe library with starred dishes first. Each dish has a portion per person. It shows calories and protein per person for each day and the whole week.
 - **Calories:** worked out from each recipe's measured ingredients (`src/lib/nutrition.ts` with IFCT/USDA data in `nutrition-data.ts`). Only about 12% of deep-frying oil is counted, since most isn't eaten. These are estimates.
-- **Shopping list:** for the whole week, one day, or one meal (every meal on the plan has a **Shop** link). It covers only the dishes planned in that scope that someone is eating, at the same servings as each dish's "cook N", using the tweaked version when there is one. Nothing else is added. Items are merged across recipes and grouped by aisle. Water is left out and salt is hidden. Each list keeps its own ticks, which sync, and it can be shared or copied.
+- **Shopping list:** for the whole week, one day, one meal (every meal on the plan has a **Shop** link), or **picked meals**: tick any meals on any days, across weeks ("Wed dinner, Thu lunch and dinner, Fri dinner"). The picks are in the link, so it can be shared. It covers only the dishes planned in that scope that someone is eating, at the same servings as each dish's "cook N", using the tweaked version when there is one. Nothing else is added. Items are merged across recipes and grouped by aisle. Water is left out and salt is hidden. Each list keeps its own ticks, which sync, and it can be shared or copied.
 - **Sync:** family members (children included), the plan (one item per planned dish, so two people adding to the same meal both keep their dishes) and shopping ticks sync with the household. Changes go up within about a second. An open app pulls everyone else's changes every 10 seconds, and again when you come back to it. The plan and family pages say who they're shared with and when they last synced, or show the error with a Retry button. A phone that opens before its first sync never resets anyone's profile.
+
+## Your kitchen (Settings)
+
+Shared with the household, and changes only how steps and amounts are shown, never the recipes:
+
+- **Hob:** gas, or induction with 1–14 levels (most AEG hobs) or 1–9. On induction, "Turn the flame to low" reads "Turn the hob to level 4", and the badge says "Level 8 of 14". Levels follow AEG's heat-setting tables: low 4, medium 8, high 12 (out of 9: 3, 5, 8).
+- **Oven:** fan or conventional. Bakes store conventional °C, and fan ovens are shown 20 °C lower.
+- **Measuring spoons** (⅛, ¼, ½, 1 tsp, ½ tbsp, 1 tbsp) **and cups** (¼, ⅓, ½, ⅔, ¾, 1). Each amount shows the fewest fills of what you own, for example "2 × ½ tsp" or "1 cup + ⅓ cup". Millilitres become cups and spoons.
+- **Kitchen scale:** without one, grams of flour, rice, dal or sugar are also shown in cups. With one, cup amounts also give the weight.
 
 ## Accounts and households
 
@@ -94,8 +103,8 @@ From datacenter IPs such as Vercel's, YouTube blocks its watch page and player A
 ## Tests
 
 ```bash
-npm test            # 428 unit tests (Vitest): recipes, search, converter, accounts and sync against real Postgres
-npm run test:e2e    # 55 browser tests (Playwright, iPhone viewport, production build, stubbed APIs)
+npm test            # 450 unit tests (Vitest): recipes, search, converter, accounts and sync against real Postgres
+npm run test:e2e    # 58 browser tests (Playwright, iPhone viewport, production build, stubbed APIs)
 npm run test:live   # opt-in: real YouTube calls (E2E_BASE_URL=https://… to hit a deployment)
 npm run test:batch  # real dishes → real videos → converter → quality rules (BASE=https://…)
 npm run validate    # quality rules for the recipe library

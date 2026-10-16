@@ -5,6 +5,9 @@ import { aiHeaders, aiReady, modelFor, saveKey, saveModel, saveSettings, useSett
 import { PROVIDERS, PROVIDER_ORDER, type ProviderId } from "@/lib/providers";
 import { speechRecognitionSupported, speak, unlockAudio } from "@/lib/kitchen";
 import { useHydrated } from "@/lib/useRecipe";
+import { saveKitchen, useKitchen } from "@/lib/household";
+import { CUPS, SPOONS, flameLabel, measureHint, ovenLabel, type KitchenTools } from "@/lib/kitchen-tools";
+import { SharedNote } from "./SharedNote";
 import { Check, Eye } from "./Icons";
 import { TopBar } from "./Nav";
 
@@ -20,6 +23,8 @@ export function SettingsView() {
       <div className="px-5">
         <h1 className="font-display text-[48px] leading-none">Settings</h1>
       </div>
+
+      <KitchenSettings />
 
       <section className="mt-8 px-4">
         <div className="px-1">
@@ -75,6 +80,94 @@ export function SettingsView() {
         .
       </p>
     </main>
+  );
+}
+
+function KitchenSettings() {
+  const k = useKitchen();
+  const toggle = <T extends string>(list: T[], id: T) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+  const example = (q: number, u: "tsp" | "tbsp" | "cup" | "ml" | "g", name: string, t: KitchenTools) => measureHint(q, u, name, t) ?? "as written";
+  return (
+    <section className="mx-4 mt-6 rounded-[26px] border border-line-2 bg-card p-5" aria-labelledby="kitchen-h">
+      <h2 id="kitchen-h" className="eyebrow text-ink-3">Your kitchen</h2>
+      <p className="mt-1.5 text-[12px] leading-snug text-ink-3">Steps and amounts are shown for what you cook with.</p>
+      <div className="mt-1">
+        <SharedNote what="your kitchen" />
+      </div>
+
+      <p className="mt-4 text-[15px] font-medium">Hob</p>
+      <Seg label="Hob" value={k.hob} options={[{ id: "gas", label: "Gas" }, { id: "induction", label: "Induction" }]} onChange={(hob) => saveKitchen({ hob })} />
+      {k.hob === "induction" && (
+        <>
+          <p className="mt-3 text-[13px] text-ink-2">Highest number on your hob</p>
+          <Seg label="Highest hob number" value={String(k.hobMax) as "9" | "14"} options={[{ id: "14", label: "14 (most AEG)" }, { id: "9", label: "9" }]} onChange={(v) => saveKitchen({ hobMax: v === "9" ? 9 : 14 })} />
+        </>
+      )}
+      <p className="mt-2 text-[12px] text-ink-3" data-testid="hob-preview">
+        Low → {flameLabel("low", k)} · Medium → {flameLabel("medium", k)} · High → {flameLabel("high", k)}
+      </p>
+
+      <p className="mt-5 text-[15px] font-medium">Oven</p>
+      <Seg label="Oven" value={k.oven} options={[{ id: "fan", label: "Fan" }, { id: "conventional", label: "Conventional" }]} onChange={(oven) => saveKitchen({ oven })} />
+      <p className="mt-2 text-[12px] text-ink-3">A cake at 180 °C bakes at {ovenLabel(180, k).replace("Oven ", "")}.</p>
+
+      <p className="mt-5 text-[15px] font-medium">Measuring spoons you have</p>
+      <Chips label="Measuring spoons" options={SPOONS} selected={k.spoons} onToggle={(id) => saveKitchen({ spoons: toggle(k.spoons, id) })} />
+      <p className="mt-5 text-[15px] font-medium">Measuring cups you have</p>
+      <Chips label="Measuring cups" options={CUPS} selected={k.cups} onToggle={(id) => saveKitchen({ cups: toggle(k.cups, id) })} />
+      <p className="mt-2 text-[12px] leading-snug text-ink-3" data-testid="measure-preview">
+        1½ tsp → {example(1.5, "tsp", "Cumin seeds", k)} · 2 tsp → {example(2, "tsp", "Cumin seeds", k)} · 320 ml water → {example(320, "ml", "Water", k)}
+      </p>
+
+      <Toggle
+        label="Kitchen scale"
+        hint={k.scale ? "Flour, rice and dal are shown in grams to weigh; cup amounts also say how many grams." : "Without one, grams of flour, rice, dal and sugar are also shown in cups and spoons."}
+        on={k.scale}
+        onChange={(scale) => saveKitchen({ scale })}
+      />
+    </section>
+  );
+}
+
+function Seg<T extends string>({ value, options, onChange, label }: { value: T; options: { id: T; label: string }[]; onChange: (v: T) => void; label: string }) {
+  return (
+    <div role="radiogroup" aria-label={label} className="mt-2 flex flex-wrap gap-1.5">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          role="radio"
+          aria-checked={value === o.id}
+          onClick={() => onChange(o.id)}
+          className={`press rounded-full border px-3.5 py-1.5 text-[13px] ${value === o.id ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-2"}`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Chips<T extends string>({ options, selected, onToggle, label }: { options: { id: T; label: string }[]; selected: T[]; onToggle: (id: T) => void; label: string }) {
+  return (
+    <div role="group" aria-label={label} className="mt-2 flex flex-wrap gap-1.5">
+      {options.map((o) => {
+        const on = selected.includes(o.id);
+        return (
+          <button
+            key={o.id}
+            type="button"
+            role="checkbox"
+            aria-checked={on}
+            onClick={() => onToggle(o.id)}
+            className={`press flex items-center gap-1 rounded-full border px-3 py-1.5 text-[13px] ${on ? "border-leaf bg-leaf-soft text-ink" : "border-line-2 text-ink-3"}`}
+          >
+            {on && <Check size={12} />}
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

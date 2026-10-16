@@ -239,6 +239,57 @@ export function shopScopeLabel(scope: ShopScope): string {
   return scope.day ? (scope.meal ? `${DAY_LABEL[scope.day]} ${MEAL_LABEL[scope.meal].toLowerCase()}` : DAY_LABEL[scope.day]) : "Whole week";
 }
 
+/** A picked meal on a date: "2026-10-14:dinner". */
+export type PickKey = `${string}:${Meal}`;
+
+export function pickKey(week: string, day: Day, meal: Meal): PickKey {
+  return `${dateKey(dayDate(week, day))}:${meal}`;
+}
+
+/** "2026-10-14:dinner" → its week, day and meal (null if malformed). */
+export function parsePick(k: string): { week: string; day: Day; meal: Meal; date: Date } | null {
+  const m = /^(\d{4}-\d{2}-\d{2}):([a-z]+)$/.exec(k);
+  const meal = m && MEALS.find((x) => x === m[2]);
+  if (!m || !meal) return null;
+  const date = parseDateKey(m[1]);
+  if (Number.isNaN(date.getTime())) return null;
+  return { week: weekStart(date), day: todayDay(date), meal, date };
+}
+
+/** "Wed 14 dinner" */
+export function pickLabel(k: string): string {
+  const p = parsePick(k);
+  return p ? `${DAY_LABEL[p.day]} ${p.date.getDate()} ${MEAL_LABEL[p.meal].toLowerCase()}` : k;
+}
+
+/** Shopping ticks for a set of picked meals are kept per set. */
+export function pickScopeKey(picks: string[]): string {
+  return `pick:${shortHash([...picks].sort().join(","))}`;
+}
+
+/** Picked meals in date order, without duplicates or bad keys. */
+export function cleanPicks(picks: string[]): string[] {
+  const [date, meal] = [(k: string) => k.split(":")[0], (k: string) => MEALS.indexOf(k.split(":")[1] as Meal)];
+  return [...new Set(picks)].filter((k) => parsePick(k)).sort((a, b) => date(a).localeCompare(date(b)) || meal(a) - meal(b));
+}
+
+/** The dishes to shop for across any picked meals (any days, any weeks), like shopDishes. */
+export function shopDishesForPicks(slots: Record<string, Slot>, picks: string[]): { recipeId: string; servings: number; meals: string[] }[] {
+  const out = new Map<string, { recipeId: string; servings: number; meals: string[] }>();
+  for (const k of cleanPicks(picks)) {
+    const p = parsePick(k)!;
+    for (const dish of slots[slotKey(p.week, p.day, p.meal)]?.dishes ?? []) {
+      const n = potServings(dish.portions);
+      if (!(n > 0)) continue;
+      const cur = out.get(dish.recipeId) ?? { recipeId: dish.recipeId, servings: 0, meals: [] };
+      cur.servings += n;
+      cur.meals.push(pickLabel(k));
+      out.set(dish.recipeId, cur);
+    }
+  }
+  return [...out.values()];
+}
+
 /**
  * The dishes to shop for in a scope, as servings to cook: only planned dishes someone eats,
  * each slot rounded the same way as its "cook N" (potServings), so the list matches the pot.

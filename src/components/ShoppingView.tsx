@@ -4,9 +4,32 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { findRecipe } from "@/lib/recipes";
 import { useSavedRecipes } from "@/lib/store";
-import { clearShop, toggleShop, usePlanWeek, useShopChecks } from "@/lib/household";
+import { clearShop, toggleShop, useAllSlots, usePlanWeek, useShopChecks } from "@/lib/household";
 import { CATEGORY_LABEL, shoppingList, type ShopLine } from "@/lib/nutrition";
-import { DAYS, DAY_LABEL, MEALS, MEAL_LABEL, shopDishes, shopScopeKey, shopScopeLabel, weekLabel, weekStart, type Day, type Meal, type ShopScope } from "@/lib/planner";
+import {
+  DAYS,
+  DAY_LABEL,
+  MEALS,
+  MEAL_LABEL,
+  addWeeks,
+  cleanPicks,
+  dateKey,
+  dayDate,
+  pickKey,
+  pickLabel,
+  pickScopeKey,
+  shopDishes,
+  shopDishesForPicks,
+  shopScopeKey,
+  shopScopeLabel,
+  slotKey,
+  weekLabel,
+  weekStart,
+  type Day,
+  type Meal,
+  type ShopScope,
+  type Slot,
+} from "@/lib/planner";
 import { useHydrated } from "@/lib/useRecipe";
 import { TopBar } from "./Nav";
 import { Check } from "./Icons";
@@ -18,20 +41,26 @@ export function ShoppingView() {
   const day = DAYS.find((d) => d === params.get("day"));
   const meal = day ? MEALS.find((m) => m === params.get("meal")) : undefined;
   const scope: ShopScope = { day, meal };
-  const scopeKey = shopScopeKey(week, scope);
+  // "Pick meals": any meals on any days, even across weeks ("Wed dinner, Thu lunch and dinner, Fri dinner").
+  const picking = params.has("pick");
+  const picks = cleanPicks((params.get("pick") ?? "").split(",").filter(Boolean));
+  const scopeKey = picking ? pickScopeKey(picks) : shopScopeKey(week, scope);
+  const scopeLabel = picking ? `${picks.length} picked ${picks.length === 1 ? "meal" : "meals"}` : shopScopeLabel(scope);
   const hydrated = useHydrated();
   const plan = usePlanWeek(week);
+  const allSlots = useAllSlots();
   const checks = useShopChecks(scopeKey);
   const saved = useSavedRecipes();
   const [showPantry, setShowPantry] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // The React compiler memoises these.
-  const entries = shopDishes(plan, scope).flatMap((d) => {
+  const entries = (picking ? shopDishesForPicks(allSlots, picks) : shopDishes(plan, scope)).flatMap((d) => {
     const recipe = findRecipe(d.recipeId, saved);
     return recipe ? [{ recipe, servings: d.servings, meals: d.meals }] : [];
   });
   const go = (d?: Day, m?: Meal) => router.replace(`/plan/shopping?week=${week}${d ? `&day=${d}` : ""}${d && m ? `&meal=${m}` : ""}`, { scroll: false });
+  const pick = (next: string[], w = week) => router.replace(`/plan/shopping?week=${w}&pick=${cleanPicks(next).join(",")}`, { scroll: false });
   const hasDishes = (d: Day, m?: Meal) => shopDishes(plan, { day: d, meal: m }).length > 0;
   const lines = shoppingList(entries);
   const visible = lines.filter((l) => showPantry || !l.pantry);
@@ -40,7 +69,7 @@ export function ShoppingView() {
 
   async function share() {
     const text =
-      `Shopping · ${shopScopeLabel(scope)} · ${weekLabel(week)}\n` +
+      `Shopping · ${picking ? picks.map(pickLabel).join(", ") : `${shopScopeLabel(scope)} · ${weekLabel(week)}`}\n` +
       `For: ${entries.map((e) => `${e.recipe.name} (${e.servings})`).join(", ")}\n` +
       Object.entries(groups)
         .map(([cat, ls]) => `\n${CATEGORY_LABEL[cat as ShopLine["cat"]]}\n${ls.filter((l) => !checks.has(l.key)).map((l) => `• ${l.name} — ${l.amount}`).join("\n")}`)
@@ -63,7 +92,8 @@ export function ShoppingView() {
       <div className="px-5">
         <h1 className="font-display text-[44px] leading-none">Shopping list</h1>
         <p className="mt-2 text-[14px] text-ink-2">
-          {shopScopeLabel(scope)} · {weekLabel(week)} · {entries.length} {entries.length === 1 ? "dish" : "dishes"} ·{" "}
+          {scopeLabel}
+          {picking ? "" : ` · ${weekLabel(week)}`} · {entries.length} {entries.length === 1 ? "dish" : "dishes"} ·{" "}
           <span className="tnum" aria-live="polite">
             {left} to buy
           </span>
@@ -71,16 +101,20 @@ export function ShoppingView() {
       </div>
 
       <div className="no-scrollbar mt-4 flex gap-1.5 overflow-x-auto px-4" role="tablist" aria-label="Shop for">
-        <button role="tab" aria-selected={!day} onClick={() => go()} className={`press shrink-0 rounded-full border px-3.5 py-1.5 text-[13px] ${!day ? "border-ink bg-ink text-paper" : "border-line-2"}`}>
+        <button role="tab" aria-selected={!day && !picking} onClick={() => go()} className={`press shrink-0 rounded-full border px-3.5 py-1.5 text-[13px] ${!day && !picking ? "border-ink bg-ink text-paper" : "border-line-2"}`}>
           Week
         </button>
+        <button role="tab" aria-selected={picking} onClick={() => pick(picks)} className={`press shrink-0 rounded-full border px-3.5 py-1.5 text-[13px] ${picking ? "border-ink bg-ink text-paper" : "border-line-2"}`}>
+          Pick meals
+        </button>
         {DAYS.map((d) => (
-          <button key={d} role="tab" aria-selected={day === d} onClick={() => go(d)} className={`press shrink-0 rounded-full border px-3 py-1.5 text-[13px] ${day === d ? "border-ink bg-ink text-paper" : "border-line-2"} ${hasDishes(d) ? "" : "opacity-40"}`}>
+          <button key={d} role="tab" aria-selected={!picking && day === d} onClick={() => go(d)} className={`press shrink-0 rounded-full border px-3 py-1.5 text-[13px] ${!picking && day === d ? "border-ink bg-ink text-paper" : "border-line-2"} ${hasDishes(d) ? "" : "opacity-40"}`}>
             {DAY_LABEL[d]}
           </button>
         ))}
       </div>
-      {day && (
+      {picking && <MealPicker week={week} picks={picks} slots={allSlots} onChange={pick} />}
+      {day && !picking && (
         <div className="no-scrollbar mt-2 flex gap-1.5 overflow-x-auto px-4" role="tablist" aria-label="Meal">
           <button role="tab" aria-selected={!meal} onClick={() => go(day)} className={`press shrink-0 rounded-full border px-3 py-1.5 text-[12px] ${!meal ? "border-ink bg-ink text-paper" : "border-line-2"}`}>
             Whole day
@@ -95,7 +129,7 @@ export function ShoppingView() {
 
       {hydrated && entries.length === 0 ? (
         <p className="mx-5 mt-6 rounded-[22px] bg-paper-2 p-5 text-[14px] text-ink-2">
-          {day ? `Nothing planned for ${shopScopeLabel(scope)}.` : "Plan some dishes for this week and the shopping list fills itself."}
+          {picking ? (picks.length ? "Nothing planned in the picked meals." : "Tick the meals you're shopping for.") : day ? `Nothing planned for ${shopScopeLabel(scope)}.` : "Plan some dishes for this week and the shopping list fills itself."}
         </p>
       ) : (
         <>
@@ -107,7 +141,7 @@ export function ShoppingView() {
                   <span className="min-w-0 truncate">
                     {e.recipe.name}
                     {e.recipe.variant?.length ? <span className="text-leaf"> · {e.recipe.variant.join(" · ")}</span> : null}
-                    {!meal && <span className="text-ink-3"> · {e.meals.join(", ")}</span>}
+                    {(picking || !meal) && <span className="text-ink-3"> · {e.meals.join(", ")}</span>}
                   </span>
                   <span className="shrink-0 tnum text-ink-2">cook {e.servings}</span>
                 </li>
@@ -153,5 +187,95 @@ export function ShoppingView() {
         </>
       )}
     </main>
+  );
+}
+
+const MEAL_SHORT: Record<Meal, string> = { breakfast: "Bkfst", lunch: "Lunch", snack: "Snack", dinner: "Dinner" };
+
+/** Tick any meals on any days; arrows move between weeks and keep what's ticked. */
+function MealPicker({ week, picks, slots, onChange }: { week: string; picks: string[]; slots: Record<string, Slot>; onChange: (picks: string[], week?: string) => void }) {
+  const planned = (d: Day, m: Meal) => (slots[slotKey(week, d, m)]?.dishes.length ?? 0) > 0;
+  const has = new Set(picks);
+  const toggle = (keys: string[]) => {
+    const allOn = keys.every((k) => has.has(k));
+    onChange(allOn ? picks.filter((k) => !keys.includes(k)) : [...picks, ...keys]);
+  };
+  const today = dateKey(new Date());
+  const fromToday = DAYS.flatMap((d) => MEALS.filter((m) => planned(d, m) && dateKey(dayDate(week, d)) >= today).map((m) => pickKey(week, d, m)));
+  return (
+    <section className="mx-4 mt-3 rounded-[20px] border border-line-2 bg-card p-3" aria-label="Pick meals">
+      <div className="flex items-center justify-between">
+        <button onClick={() => onChange(picks, addWeeks(week, -1))} className="press rounded-full px-2.5 py-1 text-[18px]" aria-label="Previous week">
+          ‹
+        </button>
+        <span className="text-[13px] font-medium">{weekLabel(week)}</span>
+        <button onClick={() => onChange(picks, addWeeks(week, 1))} className="press rounded-full px-2.5 py-1 text-[18px]" aria-label="Next week">
+          ›
+        </button>
+      </div>
+      <table className="mt-1 w-full table-fixed text-center text-[12px]">
+        <thead>
+          <tr>
+            <th className="w-[64px]" />
+            {MEALS.map((m) => (
+              <th key={m} scope="col" className="pb-1 font-normal text-ink-3">
+                <button onClick={() => toggle(DAYS.filter((d) => planned(d, m)).map((d) => pickKey(week, d, m)))} className="press" aria-label={`Pick every ${MEAL_LABEL[m].toLowerCase()} this week`}>
+                  {MEAL_SHORT[m]}
+                </button>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {DAYS.map((d) => {
+            const date = dayDate(week, d);
+            const row = MEALS.filter((m) => planned(d, m)).map((m) => pickKey(week, d, m));
+            return (
+              <tr key={d}>
+                <th scope="row" className="py-0.5 text-left font-normal">
+                  <button onClick={() => row.length && toggle(row)} disabled={!row.length} className="press text-[12px] disabled:text-ink-3" aria-label={`Pick all of ${DAY_LABEL[d]} ${date.getDate()}`}>
+                    {DAY_LABEL[d]} {date.getDate()}
+                  </button>
+                </th>
+                {MEALS.map((m) => {
+                  const k = pickKey(week, d, m);
+                  const on = has.has(k);
+                  const ok = planned(d, m);
+                  return (
+                    <td key={m} className="p-0.5">
+                      <button
+                        role="checkbox"
+                        aria-checked={on}
+                        aria-label={pickLabel(k)}
+                        disabled={!ok && !on}
+                        onClick={() => toggle([k])}
+                        className={`press grid h-8 w-full place-items-center rounded-lg border ${on ? "border-leaf bg-leaf text-paper" : ok ? "border-line-2" : "border-transparent text-line-2"}`}
+                      >
+                        {on ? <Check size={14} /> : ok ? "" : "–"}
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <button onClick={() => onChange([...picks, ...fromToday])} disabled={!fromToday.length} className="press rounded-full border border-line-2 px-3 py-1 text-[12px] disabled:opacity-40">
+          Rest of this week
+        </button>
+        {picks.length > 0 && (
+          <button onClick={() => onChange([])} className="press rounded-full border border-line-2 px-3 py-1 text-[12px]">
+            Clear
+          </button>
+        )}
+      </div>
+      {picks.length > 0 && (
+        <p className="mt-2 text-[12px] leading-snug text-ink-2" data-testid="picked-meals">
+          {picks.map(pickLabel).join(" · ")}
+        </p>
+      )}
+    </section>
   );
 }

@@ -209,10 +209,10 @@ export function markedIds(marks: Record<string, Mark>, kind: MarkKind): string[]
     .map(([k]) => k.slice(kind.length + 1));
 }
 
-// ---------- shared household data: members, plan slots, shopping ticks ----------
+// ---------- shared household data: members, plan slots, shopping ticks, kitchen tools ----------
 // One entry per item, each with its own timestamp, so edits on different phones merge.
 
-export type SharedKind = "member" | "plan" | "shop";
+export type SharedKind = "member" | "plan" | "shop" | "kitchen";
 export interface SharedEntry {
   data?: unknown;
   deleted?: boolean;

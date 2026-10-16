@@ -7,18 +7,22 @@ import alooMatar from "./aloo-matar";
 import alooParatha from "./aloo-paratha";
 import alooTikki from "./aloo-tikki";
 import appam from "./appam";
+import appleCinnamonMuffins from "./apple-cinnamon-muffins";
 import arachuvittaSambar from "./arachuvitta-sambar";
 import arisiUpma from "./arisi-upma";
+import attaJaggeryCookies from "./atta-jaggery-cookies";
 import avalUpma from "./aval-upma";
 import avial from "./avial";
 import bainganBharta from "./baingan-bharta";
 import bananaChips from "./banana-chips";
+import bananaOatMuffins from "./banana-oat-muffins";
 import bananaPancakes from "./banana-pancakes";
 import beansMezhukkupuratti from "./beans-mezhukkupuratti";
 import beansPoriyal from "./beans-poriyal";
 import beansThoran from "./beans-thoran";
 import beetrootPachadi from "./beetroot-pachadi";
 import beetrootPoriyal from "./beetroot-poriyal";
+import besanNankhataiLowSugar from "./besan-nankhatai-low-sugar";
 import bhindiMasala from "./bhindi-masala";
 import bisiBeleBath from "./bisi-bele-bath";
 import boiledEggs from "./boiled-eggs";
@@ -26,6 +30,7 @@ import breadOmelette from "./bread-omelette";
 import butterChicken from "./butter-chicken";
 import cabbagePoriyal from "./cabbage-poriyal";
 import cabbageThoran from "./cabbage-thoran";
+import carrotAttaCake from "./carrot-atta-cake";
 import carrotPoriyal from "./carrot-poriyal";
 import carrotThoran from "./carrot-thoran";
 import chakkaPuzhukku from "./chakka-puzhukku";
@@ -54,6 +59,8 @@ import { curdRice } from "./curd-rice";
 import dalFry from "./dal-fry";
 import dalMakhani from "./dal-makhani";
 import { dalTadka } from "./dal-tadka";
+import dateWalnutCake from "./date-walnut-cake";
+import datesNutLadoo from "./dates-nut-ladoo";
 import eggBhurji from "./egg-bhurji";
 import eggBiryani from "./egg-biryani";
 import eggFriedRice from "./egg-fried-rice";
@@ -135,6 +142,8 @@ import narangaAchar from "./naranga-achar";
 import neerMor from "./neer-mor";
 import neychoru from "./neychoru";
 import neyyappam from "./neyyappam";
+import oatPeanutButterCookies from "./oat-peanut-butter-cookies";
+import oatsEnergyBites from "./oats-energy-bites";
 import olan from "./olan";
 import onionPakoda from "./onion-pakoda";
 import onionUttapam from "./onion-uttapam";
@@ -166,7 +175,9 @@ import puliSadham from "./puli-sadham";
 import pulissery from "./pulissery";
 import punjabiKadhi from "./punjabi-kadhi";
 import puttu from "./puttu";
+import ragiChocolateCake from "./ragi-chocolate-cake";
 import ragiDosa from "./ragi-dosa";
+import ragiJaggeryCookies from "./ragi-jaggery-cookies";
 import ragiPorridge from "./ragi-porridge";
 import { rajmaMasala } from "./rajma-masala";
 import ravaDosa from "./rava-dosa";
@@ -182,6 +193,7 @@ import schezwanFriedRice from "./schezwan-fried-rice";
 import semiyaPayasam from "./semiya-payasam";
 import semiyaUpma from "./semiya-upma";
 import setDosa from "./set-dosa";
+import sujiCurdCake from "./suji-curd-cake";
 import sukhiyan from "./sukhiyan";
 import sulaimani from "./sulaimani";
 import sweetCornSoup from "./sweet-corn-soup";
@@ -225,18 +237,22 @@ export const SEED_RECIPES: Recipe[] = [
   alooParatha,
   alooTikki,
   appam,
+  appleCinnamonMuffins,
   arachuvittaSambar,
   arisiUpma,
+  attaJaggeryCookies,
   avalUpma,
   avial,
   bainganBharta,
   bananaChips,
+  bananaOatMuffins,
   bananaPancakes,
   beansMezhukkupuratti,
   beansPoriyal,
   beansThoran,
   beetrootPachadi,
   beetrootPoriyal,
+  besanNankhataiLowSugar,
   bhindiMasala,
   bisiBeleBath,
   boiledEggs,
@@ -244,6 +260,7 @@ export const SEED_RECIPES: Recipe[] = [
   butterChicken,
   cabbagePoriyal,
   cabbageThoran,
+  carrotAttaCake,
   carrotPoriyal,
   carrotThoran,
   chakkaPuzhukku,
@@ -272,6 +289,8 @@ export const SEED_RECIPES: Recipe[] = [
   dalFry,
   dalMakhani,
   dalTadka,
+  dateWalnutCake,
+  datesNutLadoo,
   eggBhurji,
   eggBiryani,
   eggFriedRice,
@@ -353,6 +372,8 @@ export const SEED_RECIPES: Recipe[] = [
   neerMor,
   neychoru,
   neyyappam,
+  oatPeanutButterCookies,
+  oatsEnergyBites,
   olan,
   onionPakoda,
   onionUttapam,
@@ -384,7 +405,9 @@ export const SEED_RECIPES: Recipe[] = [
   pulissery,
   punjabiKadhi,
   puttu,
+  ragiChocolateCake,
   ragiDosa,
+  ragiJaggeryCookies,
   ragiPorridge,
   rajmaMasala,
   ravaDosa,
@@ -400,6 +423,7 @@ export const SEED_RECIPES: Recipe[] = [
   semiyaPayasam,
   semiyaUpma,
   setDosa,
+  sujiCurdCake,
   sukhiyan,
   sulaimani,
   sweetCornSoup,

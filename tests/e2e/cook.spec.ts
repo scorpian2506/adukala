@@ -34,7 +34,7 @@ async function toTimedStep(page: Page, phase?: "Prep" | "Cook") {
     // For stove steps, stop on one that actually blocks (pressure steps go by whistles instead).
     const blocks = phase === "Cook" ? await page.getByRole("button", { name: "Start the timer first" }).isVisible() : true;
     if (here && blocks && (!phase || tag?.startsWith(phase))) break;
-    await page.getByRole("button", { name: /^(Next|Let's begin|Turn on the stove|Start the timer first|Wait)/ }).click();
+    await page.getByRole("button", { name: /^(Next|Let's begin|Turn on the (?:stove|hob|oven)|Start the timer first|Wait)/ }).click();
     const d = page.getByRole("dialog");
     if (await d.isVisible().catch(() => false)) await d.getByRole("button", { name: SKIP }).click();
   }
@@ -137,7 +137,7 @@ test("moving on before all whistles asks first", async ({ page }) => {
   await page.goto("/cook/dal-tadka");
   const whistle = page.getByRole("button", { name: "I heard a whistle" });
   for (let i = 0; i < 60 && !(await whistle.isVisible()); i++) {
-    await page.getByRole("button", { name: /^(Next|Let's begin|Turn on the stove|Start the timer first|Wait)/ }).click();
+    await page.getByRole("button", { name: /^(Next|Let's begin|Turn on the (?:stove|hob|oven)|Start the timer first|Wait)/ }).click();
     const d = page.getByRole("dialog");
     if (await d.isVisible().catch(() => false)) await d.getByRole("button", { name: /Skip timer, I'm done|Yes, it's done|All whistles done|It's already done — next|It's done early — next/ }).click();
   }
@@ -149,7 +149,7 @@ test("whistle counter counts to the target", async ({ page }) => {
   await page.goto("/cook/dal-tadka");
   const whistle = page.getByRole("button", { name: "I heard a whistle" });
   for (let i = 0; i < 60 && !(await whistle.isVisible()); i++) {
-    await page.getByRole("button", { name: /^(Next|Let's begin|Turn on the stove|Start the timer first|Wait)/ }).click();
+    await page.getByRole("button", { name: /^(Next|Let's begin|Turn on the (?:stove|hob|oven)|Start the timer first|Wait)/ }).click();
     const d = page.getByRole("dialog");
     if (await d.isVisible().catch(() => false)) await d.getByRole("button", { name: /Skip timer, I'm done|Yes, it's done|All whistles done|It's already done — next|It's done early — next/ }).click();
   }

@@ -6,10 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildScreens, ingredientMap, timerBlocks, type FlatStep, type Screen } from "@/lib/recipes";
 import { clearProgress, getProgress, saveProgress, saveSettings, useSettings } from "@/lib/store";
 import { useRecipe } from "@/lib/useRecipe";
+import { useKitchen } from "@/lib/household";
+import { flameLabel, forKitchen, keepHeat, kindLabel, measureHint, ovenLabel } from "@/lib/kitchen-tools";
 import {
   EQUIPMENT_LABEL,
-  FLAME_LABEL,
-  KIND_LABEL,
   clock,
   formatDuration,
   formatNumber,
@@ -28,9 +28,11 @@ import { ConfirmSheet, TimeUpModal, TimerDock } from "./CookTimers";
 
 export function CookMode({ id }: { id: string }) {
   const { recipe, ready } = useRecipe(id);
+  const tools = useKitchen();
   if (!ready) return <Loading />;
   if (!recipe) return <NotFound />;
-  return <Cook recipe={recipe} />;
+  // Step wording follows this kitchen's hob ("Turn the hob to level 4" on induction).
+  return <Cook recipe={forKitchen(recipe, tools)} />;
 }
 
 interface MainTimer {
@@ -89,6 +91,7 @@ function timeLeft(t: MainTimer | BgTimer, now: number) {
 function Cook({ recipe }: { recipe: Recipe }) {
   const router = useRouter();
   const settings = useSettings();
+  const tools = useKitchen();
   const screens = useMemo(() => buildScreens(recipe), [recipe]);
   const ings = useMemo(() => ingredientMap(recipe), [recipe]);
   const saved = useMemo(() => getProgress(recipe.id), [recipe.id]);
@@ -169,13 +172,14 @@ function Cook({ recipe }: { recipe: Recipe }) {
           );
         }
         if (st.detail) parts.push(st.detail);
-        if (st.flame && st.kind !== "flame") parts.push(`Keep the flame ${st.flame}.`);
+        if (st.flame && st.kind !== "flame") parts.push(keepHeat(st.flame, tools));
+        if (st.ovenC) parts.push(`${ovenLabel(st.ovenC, tools).replace("°C", "degrees")}.`);
         if (st.whistles) parts.push(`Wait for ${st.whistles} whistle${st.whistles > 1 ? "s" : ""}.`);
         else if (st.durationSec) parts.push(`This takes ${formatDuration(st.durationSec).replace("min", "minutes").replace(" s", " seconds")}.`);
         speak(parts.join(" "));
       }
     },
-    [factor, ings, recipe.name],
+    [factor, ings, recipe.name, tools],
   );
 
   useEffect(() => {
@@ -318,7 +322,11 @@ function Cook({ recipe }: { recipe: Recipe }) {
       : screen.type === "intro"
         ? screen.phase === "prep"
           ? "Let's begin"
-          : "Turn on the stove"
+          : recipe.cook[0]?.equipment === "oven"
+            ? "Turn on the oven"
+            : tools.hob === "induction"
+              ? "Turn on the hob"
+              : "Turn on the stove"
         : mustWait
           ? timerRunning
             ? `Wait · ${clock(timeLeft(timer!, now))}`
@@ -462,6 +470,7 @@ function Cook({ recipe }: { recipe: Recipe }) {
 }
 
 function FlameBadge({ flame }: { flame: Flame }) {
+  const tools = useKitchen();
   const n = flame === "off" ? 0 : flame === "low" ? 1 : flame === "medium" ? 2 : 3;
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium ${flame === "off" ? "bg-card text-ink-2" : "bg-chilli text-paper"}`}>
@@ -470,7 +479,7 @@ function FlameBadge({ flame }: { flame: Flame }) {
           <span key={i} className={`w-[4px] rounded-full ${i < n ? (flame === "off" ? "bg-ink" : "bg-paper") : flame === "off" ? "bg-line-2" : "bg-paper/30"}`} style={{ height: 6 + i * 3 }} />
         ))}
       </span>
-      {FLAME_LABEL[flame]}
+      {flameLabel(flame, tools)}
     </span>
   );
 }
@@ -502,17 +511,19 @@ function StepScreen({
   whistles: number;
   onWhistle: () => void;
 }) {
+  const tools = useKitchen();
   return (
     <div className="flex flex-1 flex-col px-4 pb-4 pt-3">
       <div className={`relative overflow-hidden rounded-[30px] ${HUE_BG[recipe.hue]}`}>
-        <StepArt kind={step.kind} flame={step.flame} equipment={step.equipment} hue={recipe.hue} offStove={(step.phase === "prep" && !step.flame) || step.equipment === "bowl"} className="mx-auto block h-[clamp(130px,24vh,200px)] w-full" />
+        <StepArt kind={step.kind} flame={step.flame} equipment={step.equipment} hue={recipe.hue} offStove={(step.phase === "prep" && !step.flame) || step.equipment === "bowl" || step.equipment === "whisk" || step.equipment === "baking_tin"} className="mx-auto block h-[clamp(130px,24vh,200px)] w-full" />
         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
           <span className="eyebrow rounded-full bg-card/85 px-2.5 py-1.5 text-ink">
-            {step.phase === "prep" ? "Prep" : "Cook"} · {KIND_LABEL[step.kind]}
+            {step.phase === "prep" ? "Prep" : "Cook"} · {kindLabel(step.kind, tools)}
           </span>
         </div>
         <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center gap-1.5">
           {step.flame && <FlameBadge flame={step.flame} />}
+          {step.ovenC && <span className="rounded-full bg-chilli px-3 py-1.5 text-[12px] font-medium text-paper" data-testid="oven-badge">{ovenLabel(step.ovenC, tools)}</span>}
           {step.equipment && <span className="rounded-full bg-card/85 px-3 py-1.5 text-[12px] font-medium">{EQUIPMENT_LABEL[step.equipment]}</span>}
         </div>
       </div>
@@ -527,6 +538,7 @@ function StepScreen({
           {step.items.map((it, i) => {
             const ing = ings[it.ingredient];
             const unit = unitLabel(it.qty * factor, it.unit);
+            const how = measureHint(it.qty * factor, it.unit, ing?.name ?? it.ingredient, tools);
             return (
               <li key={i} className="flex items-center gap-4 rounded-[20px] border border-line-2 bg-card px-4 py-3">
                 <span className="font-display min-w-[76px] text-[38px] leading-none text-ink tnum">
@@ -536,6 +548,7 @@ function StepScreen({
                 <span className="min-w-0 flex-1">
                   <span className="block text-[16px] font-medium leading-tight text-ink">{ing?.name ?? it.ingredient}</span>
                   {(ing?.native || ing?.approx) && <span className="mt-0.5 block text-[12px] text-ink-3">{[ing.native, ing.approx].filter(Boolean).join(" · ")}</span>}
+                  {how && <span className="mt-1 block text-[13px] font-medium text-leaf" data-testid="measure-hint">{how}</span>}
                 </span>
               </li>
             );
@@ -715,7 +728,10 @@ function IngredientSheet({ recipe, factor, servings, used, onClose }: { recipe: 
                   <span className={`grid h-5 w-5 place-items-center rounded-full border ${done ? "border-leaf bg-leaf text-paper" : "border-line-2"}`}>{done && <Check size={12} />}</span>
                   <span className={`text-[15px] ${done ? "line-through" : ""}`}>{ing.name}</span>
                 </span>
-                <span className="font-mono text-[14px] tnum">{formatQty(ing.qty * factor, ing.unit)}</span>
+                <span className="shrink-0 text-right font-mono text-[14px] tnum">
+                  {formatQty(ing.qty * factor, ing.unit)}
+                  <MeasureHint qty={ing.qty * factor} unit={ing.unit} name={ing.name} />
+                </span>
               </li>
             );
           })}
@@ -726,4 +742,9 @@ function IngredientSheet({ recipe, factor, servings, used, onClose }: { recipe: 
       </div>
     </div>
   );
+}
+
+function MeasureHint({ qty, unit, name }: { qty: number; unit: Recipe["ingredients"][number]["unit"]; name: string }) {
+  const how = measureHint(qty, unit, name, useKitchen());
+  return how ? <span className="block font-sans text-[11px] font-medium text-leaf">{how}</span> : null;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DAYS, MEALS, addWeeks, dateKey, dayDate, dishKey, personTotals, planSlots, servingsByRecipe, shopDishes, shopScopeKey, shopScopeLabel, slotKey, slotWrites, todayDay, weekLabel, weekStart, type PlanEntry, type Slot } from "@/lib/planner";
+import { DAYS, MEALS, addWeeks, cleanPicks, dateKey, dayDate, dishKey, personTotals, pickKey, pickScopeKey, planSlots, shopDishesForPicks, servingsByRecipe, shopDishes, shopScopeKey, shopScopeLabel, slotKey, slotWrites, todayDay, weekLabel, weekStart, type PlanEntry, type Slot } from "@/lib/planner";
 import { bmi, calorieTable, checkDay, dailyTarget, defaultPortion, eats, type Member } from "@/lib/family";
 import { shoppingList } from "@/lib/nutrition";
 import { findRecipe } from "@/lib/recipes";
@@ -189,5 +189,34 @@ describe("plan storage: one synced item per dish", () => {
     const long = `aloo-matar--low_oil~${Array.from({ length: 30 }, (_, i) => `x_ingredient${i}`).join("~")}`;
     expect(dishKey(slot, long).length).toBeLessThanOrEqual(200);
     expect(dishKey(slot, long)).not.toBe(dishKey(slot, `${long}~ggp`));
+  });
+});
+
+describe("shopping for picked meals across days and weeks", () => {
+  const slots: Record<string, Slot> = {
+    "2026-10-12:wed:dinner": { dishes: [{ recipeId: "sambar", portions: { a: 1, b: 1 } }] },
+    "2026-10-12:thu:lunch": { dishes: [{ recipeId: "sambar", portions: { a: 1 } }, { recipeId: "avial", portions: { a: 1 } }] },
+    "2026-10-12:thu:dinner": { dishes: [{ recipeId: "jeera-rice", portions: { a: 1, b: 0.5 } }] },
+    "2026-10-12:fri:breakfast": { dishes: [{ recipeId: "idli", portions: { a: 2 } }] },
+    "2026-10-19:mon:dinner": { dishes: [{ recipeId: "sambar", portions: { a: 1 } }] },
+  };
+
+  it("adds up only the picked meals, even into next week", () => {
+    const picks = ["2026-10-14:dinner", "2026-10-15:lunch", "2026-10-15:dinner", "2026-10-19:dinner", "2026-10-19:dinner"];
+    const got = shopDishesForPicks(slots, picks);
+    expect(got.map((d) => [d.recipeId, d.servings])).toEqual([
+      ["sambar", 4],
+      ["avial", 1],
+      ["jeera-rice", 1.5],
+    ]);
+    expect(got[0].meals).toEqual(["Wed 14 dinner", "Thu 15 lunch", "Mon 19 dinner"]);
+    expect(got.some((d) => d.recipeId === "idli")).toBe(false);
+  });
+
+  it("keeps picks tidy and their ticks separate from other lists", () => {
+    expect(cleanPicks(["2026-10-15:dinner", "junk", "2026-10-15:breakfast", "2026-10-14:dinner", "2026-10-14:dinner"])).toEqual(["2026-10-14:dinner", "2026-10-15:breakfast", "2026-10-15:dinner"]);
+    expect(pickKey("2026-10-12", "wed", "dinner")).toBe("2026-10-14:dinner");
+    expect(pickScopeKey(["2026-10-15:dinner", "2026-10-14:dinner"])).toBe(pickScopeKey(["2026-10-14:dinner", "2026-10-15:dinner"]));
+    expect(pickScopeKey(["2026-10-14:dinner"])).not.toBe(shopScopeKey("2026-10-12", { day: "wed", meal: "dinner" }));
   });
 });

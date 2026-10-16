@@ -1,9 +1,9 @@
 // Two-way merge for household data: per item, the newest change wins.
 // Pure, so the server and tests share it.
 
-export type SyncKind = "recipe" | "star" | "pin" | "member" | "plan" | "shop";
+export type SyncKind = "recipe" | "star" | "pin" | "member" | "plan" | "shop" | "kitchen";
 /** Kinds whose value lives in `data` (stars/pins are just on/off). */
-export const DATA_KINDS = new Set<SyncKind>(["recipe", "member", "plan", "shop"]);
+export const DATA_KINDS = new Set<SyncKind>(["recipe", "member", "plan", "shop", "kitchen"]);
 
 export interface SyncItem {
   kind: SyncKind;
@@ -13,7 +13,7 @@ export interface SyncItem {
   updatedAt: number;
 }
 
-export const SYNC_KINDS = new Set<string>(["recipe", "star", "pin", "member", "plan", "shop"]);
+export const SYNC_KINDS = new Set<string>(["recipe", "star", "pin", "member", "plan", "shop", "kitchen"]);
 export const MAX_ITEMS = 2000;
 export const MAX_ITEM_BYTES = 200_000;
 

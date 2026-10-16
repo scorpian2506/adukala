@@ -67,6 +67,11 @@ export function validateRecipe(r: Recipe, opts: { seed?: boolean } = {}): Issue[
     if (s.kind === "measure" && !s.items?.length) err(`${where} measure step without items`);
     if (FLAME_ONLY_KINDS.has(s.kind) && s.items?.length) err(`${where} ${s.kind} step should not carry items`);
     if (s.kind === "flame" && !s.flame) err(`${where} flame step without flame level`);
+    if (s.equipment === "oven") {
+      if ((s.kind === "heat" || s.kind === "wait") && !(s.ovenC && s.ovenC >= 100 && s.ovenC <= 250)) err(`${where} oven ${s.kind} step needs ovenC (100–250 °C, conventional)`);
+      if (s.flame) err(`${where} oven step should not have a flame`);
+    }
+    if (s.ovenC && s.equipment !== "oven") err(`${where} ovenC on a step that isn't in the oven`);
 
     for (const it of s.items ?? []) {
       const ing = ingById.get(it.ingredient);
@@ -158,7 +163,8 @@ export function validateRecipe(r: Recipe, opts: { seed?: boolean } = {}): Issue[
   // ingredient tags
   for (const ing of r.ingredients) {
     const name = `${ing.id} ${ing.name}`.toLowerCase();
-    const want = /\b(oil|ghee|butter)\b/.test(name)
+    // Nut butters are food, not cooking fat: "Low oil" must not halve the peanut butter.
+    const want = /\b(oil|ghee|butter)\b/.test(name.replace(/\b(peanut|nut|almond|cashew)[- ]butter\b/g, ""))
       ? "oil"
       : /\bsalt\b/.test(name)
         ? "salt"

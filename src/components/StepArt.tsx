@@ -148,6 +148,28 @@ function Scene({ kind, flame, equipment, hue, offStove }: { kind: StepKind; flam
   const [strong, soft] = HUE_FILL[hue];
   const usesCooker = equipment === "pressure_cooker";
 
+  // Baking: the oven, glowing while it's on.
+  if (equipment === "oven") {
+    const on = kind !== "note";
+    return (
+      <g>
+        <rect x="46" y="30" width="108" height="112" rx="12" fill="var(--card)" stroke={INK} strokeWidth={SW} />
+        <line x1="46" y1="52" x2="154" y2="52" stroke={INK} strokeWidth={SW} />
+        {[66, 84, 102].map((x) => (
+          <circle key={x} cx={x} cy={41} r={4} fill="var(--paper-2)" stroke={INK} strokeWidth={1.6} />
+        ))}
+        <circle cx={136} cy={41} r={3} fill={on ? "var(--chilli)" : "var(--line-2)"} style={on ? anim("bob", 1.4) : undefined} />
+        <rect x="60" y="64" width="80" height="62" rx="8" fill={on ? soft : "var(--paper-2)"} stroke={INK} strokeWidth={SW} />
+        <line x1="66" y1="60" x2="134" y2="60" stroke={INK} strokeWidth={3} strokeLinecap="round" />
+        <rect x="74" y="98" width="52" height="16" rx="4" fill={strong} stroke={INK} strokeWidth={SW} style={kind === "wait" ? anim("bob", 2.6) : undefined} />
+        {on &&
+          [80, 100, 120].map((x, i) => (
+            <path key={x} d={`M${x} 92 q-4 -6 0 -12 q4 -6 0 -12`} fill="none" stroke={INK} strokeWidth={1.4} strokeLinecap="round" style={anim("bubble", 2.4, { animationDelay: `${i * 0.6}s` })} />
+          ))}
+      </g>
+    );
+  }
+
   // Prep work in a bowl: no stove, no flame.
   if (offStove && (kind === "add" || kind === "stir" || kind === "wait" || kind === "note")) {
     return (

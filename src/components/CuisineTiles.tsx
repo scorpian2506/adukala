@@ -76,6 +76,7 @@ const TILES: Tile[] = [
   { id: "indochinese", label: "Indo-Chinese", kicker: "Noodles & manchurian", bg: "#e8a08c", ink: "#7a1f10", size: "small", samples: ["veg-hakka-noodles", "gobi-manchurian"], motif: chopsticks },
   { id: "kids", label: "Kids' meals", kicker: "Mild & lunchbox-ready", bg: "#b9cbb1", ink: "#2c4a2d", size: "small", samples: ["banana-pancakes", "veg-cheese-sandwich"], motif: stars },
   { id: "dessert", label: "Sweets", kicker: "Payasam, kesari, halwa", bg: "#f2d4c7", ink: "#7c3b2a", size: "small", samples: ["rava-kesari", "paal-payasam"], motif: sprinkles },
+  { id: "treats", label: "Kids' treats", kicker: "Low-sugar cakes, muffins & cookies", bg: "#f6dfb0", ink: "#6e4a12", size: "wide", samples: ["banana-oat-muffins", "ragi-chocolate-cake", "oat-peanut-butter-cookies"], motif: sprinkles },
 ];
 
 const PATTERN_ID: Partial<Record<Facet, string>> = { tamil: "kolam", kerala: "fronds", north: "paisley", biryani: "steam", indochinese: "chop", kids: "stars", tiffin: "sun", dessert: "sprinkle" };

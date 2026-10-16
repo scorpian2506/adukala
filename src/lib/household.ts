@@ -5,6 +5,7 @@ import { useAccount } from "./account";
 import { MEMBER_COLORS, dailyTarget, defaultPortion, eats, memberForUser, type Member } from "./family";
 import { DAYS, MEALS, fitPortions, planSlots, slotKey, slotWrites, type Day, type Meal, type Nutrients, type PlanEntry, type Slot } from "./planner";
 import { getShared, patchShared, putShared, removeShared, sharedOf, useShared, type SharedEntry } from "./store";
+import { normaliseTools, type KitchenTools } from "./kitchen-tools";
 import type { Recipe } from "./types";
 
 // Family members, the weekly plan and shopping ticks — shared with the household when signed in.
@@ -64,6 +65,12 @@ function planEntries(shared: Record<string, SharedEntry>): Record<string, PlanEn
 
 function allSlots(): Record<string, Slot> {
   return planSlots(planEntries(getShared()));
+}
+
+/** Every planned meal, all weeks: "week:day:meal" → Slot. */
+export function useAllSlots(): Record<string, Slot> {
+  const shared = useShared();
+  return useMemo(() => planSlots(planEntries(shared)), [shared]);
 }
 
 export function usePlanWeek(week: string): Record<string, Slot> {
@@ -132,6 +139,18 @@ export function copyWeek(from: string, to: string) {
     const src = all[slotKey(from, d, m)];
     if (src?.dishes?.length && !all[slotKey(to, d, m)]?.dishes?.length) setSlot(to, d, m, src);
   }
+}
+
+/** The household's hob, oven, measuring spoons and cups, and scale (shared, so everyone cooks with the same kitchen). */
+export function useKitchen(): KitchenTools {
+  const shared = useShared();
+  const raw = sharedOf<unknown>(shared, "kitchen").tools;
+  return useMemo(() => normaliseTools(raw), [raw]);
+}
+
+export function saveKitchen(patch: Partial<KitchenTools>) {
+  const cur = normaliseTools(sharedOf<unknown>(getShared(), "kitchen").tools);
+  putShared("kitchen", "tools", { ...cur, ...patch });
 }
 
 export function useShopChecks(week: string): Set<string> {

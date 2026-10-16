@@ -128,6 +128,9 @@ export const EQUIPMENT_LABEL: Record<Equipment, string> = {
   bowl: "Bowls",
   sieve: "Sieve",
   ladle: "Ladle",
+  oven: "Oven",
+  baking_tin: "Baking tin or tray",
+  whisk: "Whisk",
 };
 
 export const FLAME_LABEL: Record<Flame, string> = {
@@ -156,7 +159,7 @@ export const KIND_LABEL: Record<StepKind, string> = {
   note: "Note",
 };
 
-export const REGION_LABEL = { north: "North Indian", south: "South Indian", indo_chinese: "Indo-Chinese" } as const;
+export const REGION_LABEL = { north: "North Indian", south: "South Indian", indo_chinese: "Indo-Chinese", baking: "Bakes" } as const;
 
 export function scaleFactor(recipe: Recipe, servings: number) {
   return servings / recipe.servings;

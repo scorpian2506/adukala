@@ -6,10 +6,11 @@ import { useMemo, useState } from "react";
 import { CUSTOMISATIONS, OFFLINE_CUSTOMISATIONS, flattenSteps, replacesSeed, stepNumberAt, tweakRecipe, type CustomisationId } from "@/lib/recipes";
 import { aiHeaders, aiReady, deleteRecipe, getProgress, isMarked, saveProgress, saveRecipe, toggleMark, useMarks, useSavedRecipes, useSettings } from "@/lib/store";
 import { useRecipe } from "@/lib/useRecipe";
-import { EQUIPMENT_LABEL, KIND_LABEL, REGION_LABEL, formatQty, totalMinutes } from "@/lib/format";
+import { EQUIPMENT_LABEL, REGION_LABEL, formatQty, totalMinutes } from "@/lib/format";
 import type { Ingredient, Recipe } from "@/lib/types";
 import { recipeNutrition } from "@/lib/nutrition";
-import { addDish, useFamily, useMe } from "@/lib/household";
+import { addDish, useFamily, useKitchen, useMe } from "@/lib/household";
+import { hobText, kindLabel, measureHint } from "@/lib/kitchen-tools";
 import { GOALS, usualTweaks } from "@/lib/family";
 import { ALTS, canonicalSwaps, swapOptions, swapTarget, usualSwaps, type Alt, type SwapId } from "@/lib/swaps";
 import { foodKey } from "@/lib/nutrition";
@@ -45,6 +46,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const [servings, setServings] = useState(() => getProgress(recipe.id)?.servings ?? recipe.servings);
   const saved = useSavedRecipes();
   const me = useMe();
+  const tools = useKitchen();
   // Your usual tweaks are ticked until you change them (not on a version that already has its own).
   const defaults = recipe.variant?.length ? [] : usualTweaks(me);
   const [picked, setPicked] = useState<CustomisationId[] | null>(null);
@@ -433,6 +435,10 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                     <span className="text-right font-mono text-[14px] text-ink tnum">
                       {formatQty(ing.qty * factor, ing.unit)}
                       {changed && <span className="block text-[11px] text-ink-3 line-through">{formatQty(was! * factor, ing.unit)}</span>}
+                      {(() => {
+                        const how = measureHint(ing.qty * factor, ing.unit, ing.name, tools);
+                        return how ? <span className="block max-w-[150px] font-sans text-[11px] font-medium leading-tight text-leaf" data-testid="measure-hint">{how}</span> : null;
+                      })()}
                     </span>
                     <button onClick={() => setSwapping(ing.id)} className="press -mr-1 rounded-full px-1 text-[11px] text-ink-3 underline underline-offset-2" aria-label={`Swap ${ing.name}`}>
                       Swap
@@ -461,9 +467,9 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
               <li key={i} className="flex gap-3 border-b border-line py-2.5">
                 <span className="w-6 shrink-0 font-mono text-[12px] text-ink-3 tnum">{i + 1}</span>
                 <div className="min-w-0">
-                  <p className="text-[14px] text-ink">{s.title}</p>
+                  <p className="text-[14px] text-ink">{hobText(s.title, tools)}</p>
                   <p className="eyebrow mt-0.5 text-ink-3">
-                    {s.phase === "prep" ? "Prep" : "Cook"} · {KIND_LABEL[s.kind]}
+                    {s.phase === "prep" ? "Prep" : "Cook"} · {kindLabel(s.kind, tools)}
                   </p>
                 </div>
               </li>

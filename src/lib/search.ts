@@ -126,7 +126,7 @@ function scoreToken(q: string, idx: Indexed): number {
   return best;
 }
 
-export type Facet = "tamil" | "kerala" | "north" | "indochinese" | "kids" | "veg" | "nonveg" | "quick" | "biryani" | "breakfast" | "tiffin" | "dessert";
+export type Facet = "tamil" | "kerala" | "north" | "indochinese" | "kids" | "veg" | "nonveg" | "quick" | "biryani" | "breakfast" | "tiffin" | "dessert" | "treats";
 
 export const FACETS: { id: Facet; label: string }[] = [
   { id: "tamil", label: "Tamil" },
@@ -138,6 +138,7 @@ export const FACETS: { id: Facet; label: string }[] = [
   { id: "tiffin", label: "Tiffin" },
   { id: "breakfast", label: "Breakfast" },
   { id: "dessert", label: "Sweets" },
+  { id: "treats", label: "Kids' treats" },
   { id: "quick", label: "Under 30 min" },
   { id: "veg", label: "Veg" },
   { id: "nonveg", label: "Non-veg" },
@@ -170,6 +171,9 @@ export function matchesFacet(r: Recipe, f: Facet): boolean {
       return r.region === "south" && (r.course === "breakfast" || (r.tags ?? []).some((t) => /tiffin/i.test(t)));
     case "dessert":
       return r.course === "dessert";
+    case "treats":
+      // Low-sugar cakes, muffins, cookies and ladoos for children: better than store-bought.
+      return !!r.kidFriendly && r.course === "dessert" && (r.tags ?? []).includes("low sugar");
   }
 }
 

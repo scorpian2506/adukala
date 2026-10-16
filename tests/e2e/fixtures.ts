@@ -33,7 +33,7 @@ export async function setStorage(page: Page, values: Record<string, unknown>) {
 export async function cookThrough(page: Page, max = 200) {
   for (let i = 0; i < max; i++) {
     if (await page.getByRole("button", { name: "Finish" }).isVisible()) return i;
-    const next = page.locator("main button").filter({ hasText: /^(Next|Let's begin|Turn on the stove|Start the timer first|Wait)/ }).last();
+    const next = page.locator("main button").filter({ hasText: /^(Next|Let's begin|Turn on the (?:stove|hob|oven)|Start the timer first|Wait)/ }).last();
     await next.click();
     // Timed steps ask for confirmation before moving on.
     const confirm = page.getByRole("dialog");
