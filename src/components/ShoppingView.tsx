@@ -43,7 +43,9 @@ export function ShoppingView() {
   const scope: ShopScope = { day, meal };
   // "Pick meals": any meals on any days, even across weeks ("Wed dinner, Thu lunch and dinner, Fri dinner").
   const picking = params.has("pick");
-  const picks = cleanPicks((params.get("pick") ?? "").split(",").filter(Boolean));
+  // Held here too: quick taps must each build on the last one, not on a link that hasn't updated yet.
+  const [tapped, setTapped] = useState<string[] | null>(null);
+  const picks = tapped ?? cleanPicks((params.get("pick") ?? "").split(",").filter(Boolean));
   const scopeKey = picking ? pickScopeKey(picks) : shopScopeKey(week, scope);
   const scopeLabel = picking ? `${picks.length} picked ${picks.length === 1 ? "meal" : "meals"}` : shopScopeLabel(scope);
   const hydrated = useHydrated();
@@ -59,8 +61,12 @@ export function ShoppingView() {
     const recipe = findRecipe(d.recipeId, saved);
     return recipe ? [{ recipe, servings: d.servings, meals: d.meals }] : [];
   });
-  const go = (d?: Day, m?: Meal) => router.replace(`/plan/shopping?week=${week}${d ? `&day=${d}` : ""}${d && m ? `&meal=${m}` : ""}`, { scroll: false });
-  const pick = (next: string[], w = week) => router.replace(`/plan/shopping?week=${w}&pick=${cleanPicks(next).join(",")}`, { scroll: false });
+  const go = (d?: Day, m?: Meal) => (setTapped(null), router.replace(`/plan/shopping?week=${week}${d ? `&day=${d}` : ""}${d && m ? `&meal=${m}` : ""}`, { scroll: false }));
+  const pick = (next: string[], w = week) => {
+    const clean = cleanPicks(next);
+    setTapped(clean);
+    router.replace(`/plan/shopping?week=${w}&pick=${clean.join(",")}`, { scroll: false });
+  };
   const hasDishes = (d: Day, m?: Meal) => shopDishes(plan, { day: d, meal: m }).length > 0;
   const lines = shoppingList(entries);
   const visible = lines.filter((l) => showPantry || !l.pantry);
